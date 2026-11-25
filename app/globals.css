@@ -1,0 +1,323 @@
+/* Primer Primitives — design tokens (CSS custom properties).
+   These imports establish the token + theme baseline that every Primer
+   component and all of our own CSS reads from. Order matters: base + functional
+   tokens first, then the per-theme functional color sets. */
+@import '@primer/primitives/dist/css/base/size/size.css';
+@import '@primer/primitives/dist/css/base/typography/typography.css';
+@import '@primer/primitives/dist/css/base/motion/motion.css';
+@import '@primer/primitives/dist/css/functional/size/border.css';
+@import '@primer/primitives/dist/css/functional/size/breakpoints.css';
+@import '@primer/primitives/dist/css/functional/size/size-coarse.css';
+@import '@primer/primitives/dist/css/functional/size/size-fine.css';
+@import '@primer/primitives/dist/css/functional/size/size.css';
+@import '@primer/primitives/dist/css/functional/size/viewport.css';
+@import '@primer/primitives/dist/css/functional/typography/typography.css';
+
+@import '@primer/primitives/dist/css/functional/themes/light.css';
+@import '@primer/primitives/dist/css/functional/themes/dark.css';
+@import '@primer/primitives/dist/css/functional/themes/dark-dimmed.css';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100vh;
+  background-color: var(--bgColor-default);
+  color: var(--fgColor-default);
+  font-family: var(
+    --fontStack-system,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif
+  );
+}
+
+#__next {
+  min-height: 100vh;
+}
+
+.wasp-page {
+  width: min(100% - 48px, 1200px);
+  margin: 0 auto;
+}
+
+.wasp-header {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
+}
+
+.wasp-wordmark {
+  color: var(--fgColor-default);
+  font-size: var(--text-title-size-medium);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  text-decoration: none;
+}
+
+.wasp-header-actions,
+.wasp-hero-actions,
+.wasp-inline-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wasp-hero {
+  min-height: 540px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.9fr);
+  align-items: center;
+  gap: 64px;
+  padding: 64px 0;
+}
+
+.wasp-hero-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.wasp-eyebrow {
+  color: var(--fgColor-accent);
+  font-size: var(--text-body-size-small);
+  font-weight: 600;
+}
+
+.wasp-hero-title {
+  max-width: 620px;
+  font-size: clamp(40px, 5vw, 64px);
+  font-weight: 600;
+  letter-spacing: -0.055em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+.wasp-hero-description {
+  max-width: 480px;
+  color: var(--fgColor-muted);
+  font-size: var(--text-title-size-small);
+  line-height: 1.55;
+}
+
+.wasp-preview {
+  min-height: 360px;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  overflow: hidden;
+  border: var(--borderWidth-thin) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+  background: var(--bgColor-default);
+}
+
+.wasp-preview-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 12px;
+  border-right: var(--borderWidth-thin) solid var(--borderColor-default);
+  background: var(--bgColor-muted);
+}
+
+.wasp-preview-brand {
+  margin: 0 8px 16px;
+  font-weight: 600;
+}
+
+.wasp-preview-nav {
+  padding: 8px;
+  border-radius: var(--borderRadius-small);
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+.wasp-preview-nav-active {
+  background: var(--bgColor-inset);
+  color: var(--fgColor-default);
+}
+
+.wasp-preview-main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+}
+
+.wasp-preview-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
+}
+
+.wasp-preview-title {
+  font-size: var(--text-title-size-small);
+  font-weight: 600;
+}
+
+.wasp-preview-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  border: var(--borderWidth-thin) dashed var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+  text-align: center;
+}
+
+.wasp-preview-empty strong {
+  font-size: var(--text-body-size-medium);
+}
+
+.wasp-preview-empty span {
+  max-width: 220px;
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+.wasp-features {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px;
+  padding: 40px 0 64px;
+  border-top: var(--borderWidth-thin) solid var(--borderColor-default);
+}
+
+.wasp-feature {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wasp-feature strong {
+  font-size: var(--text-body-size-medium);
+  font-weight: 600;
+}
+
+.wasp-feature span {
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+  line-height: 1.5;
+}
+
+.wasp-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 0 40px;
+  border-top: var(--borderWidth-thin) solid var(--borderColor-default);
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+.wasp-footer a {
+  color: inherit;
+}
+
+.wasp-login-wrap {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.wasp-login-card {
+  width: min(100%, 400px);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 24px;
+  padding: 32px;
+  border: var(--borderWidth-thin) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+}
+
+.wasp-login-card h1 {
+  font-size: var(--text-title-size-medium);
+  font-weight: 600;
+}
+
+.wasp-login-card p {
+  color: var(--fgColor-muted);
+  line-height: 1.5;
+}
+
+.wasp-login-back {
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+@media (max-width: 800px) {
+  .wasp-hero {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding: 56px 0;
+  }
+
+  .wasp-preview {
+    min-height: 320px;
+  }
+}
+
+@media (max-width: 600px) {
+  .wasp-page {
+    width: min(100% - 32px, 1200px);
+  }
+
+  .wasp-header {
+    min-height: 64px;
+  }
+
+  .wasp-header-actions {
+    gap: 8px;
+  }
+
+  .wasp-hero {
+    min-height: auto;
+    padding: 48px 0 40px;
+  }
+
+  .wasp-hero-title {
+    font-size: 40px;
+  }
+
+  .wasp-preview {
+    grid-template-columns: 104px minmax(0, 1fr);
+    min-height: 280px;
+  }
+
+  .wasp-preview-sidebar {
+    padding: 16px 8px;
+  }
+
+  .wasp-preview-main {
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .wasp-features {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 32px 0 40px;
+  }
+
+  .wasp-footer {
+    flex-direction: column;
+  }
+
+  .wasp-login-card {
+    padding: 24px;
+  }
+}
