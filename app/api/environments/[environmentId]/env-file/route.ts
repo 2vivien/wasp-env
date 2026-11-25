@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { hasValidMutationHeaders, jsonNoStore } from '@/lib/api'
 import { getCurrentSession } from '@/lib/auth/session'
@@ -17,6 +17,9 @@ export async function GET(_request: Request, { params }: RouteContext) {
   const session = await getCurrentSession()
   if (!session?.user) return jsonNoStore({ error: { code: 'AUTH_REQUIRED' } }, 401)
   const { environmentId } = await params
+  const [environment] = await db.select({ id: environments.id }).from(environments)
+    .where(and(eq(environments.id, environmentId), eq(environments.userId, session.user.id), isNull(environments.deletedAt))).limit(1)
+  if (!environment) return jsonNoStore({ error: { code: 'NOT_FOUND' } }, 404)
   const [file] = await db.select({ id: envFiles.id, encryptedLayout: envFiles.encryptedLayout, version: envFiles.version, updatedAt: envFiles.updatedAt })
     .from(envFiles).where(and(eq(envFiles.environmentId, environmentId), eq(envFiles.userId, session.user.id))).limit(1)
   return file ? jsonNoStore(file) : jsonNoStore({ error: { code: 'NOT_FOUND' } }, 404)
@@ -31,7 +34,7 @@ export async function PUT(request: Request, { params }: RouteContext) {
   try { body = await request.json() } catch { return jsonNoStore({ error: { code: 'VALIDATION' } }, 422) }
   const parsed = z.object({ encryptedLayout: encryptedBlobSchema, expectedVersion: z.number().int().min(0).max(100000) }).strict().safeParse(body)
   if (!parsed.success) return jsonNoStore({ error: { code: 'VALIDATION' } }, 422)
-  const [environment] = await db.select({ id: environments.id, vaultId: environments.vaultId }).from(environments).where(and(eq(environments.id, environmentId), eq(environments.userId, session.user.id))).limit(1)
+  const [environment] = await db.select({ id: environments.id, vaultId: environments.vaultId }).from(environments).where(and(eq(environments.id, environmentId), eq(environments.userId, session.user.id), isNull(environments.deletedAt))).limit(1)
   if (!environment) return jsonNoStore({ error: { code: 'NOT_FOUND' } }, 404)
 
   const [current] = await db.select({ id: envFiles.id, version: envFiles.version }).from(envFiles)

@@ -18,22 +18,46 @@
 @import '@primer/primitives/dist/css/functional/themes/dark-dimmed.css';
 
 :root {
-  --wasp-accent-dark: #a8b88e;
-  --wasp-accent-light: #536844;
-  --wasp-focus-dark: #c2d2a7;
-  --wasp-focus-light: #405637;
+  --wasp-accent-dark: #a8d5ae;
+  --wasp-accent-light: #245c34;
+  --wasp-focus-dark: #b9e9c0;
+  --wasp-focus-light: #245c34;
+  --wasp-text-dark: #d2f1d7;
+  --wasp-muted-dark: #9ec9a5;
+  --wasp-text-light: #174b28;
+  --wasp-muted-light: #3f704b;
 }
 
 html[data-color-mode='dark'][data-dark-theme='dark'] {
+  --fgColor-default: var(--wasp-text-dark);
+  --fgColor-muted: var(--wasp-muted-dark);
   --fgColor-accent: var(--wasp-accent-dark);
   --borderColor-accent-emphasis: var(--wasp-accent-dark);
   --focus-outlineColor: var(--wasp-focus-dark);
 }
 
 html[data-color-mode='light'][data-light-theme='light'] {
+  --fgColor-default: var(--wasp-text-light);
+  --fgColor-muted: var(--wasp-muted-light);
   --fgColor-accent: var(--wasp-accent-light);
   --borderColor-accent-emphasis: var(--wasp-accent-light);
   --focus-outlineColor: var(--wasp-focus-light);
+}
+
+html[data-color-mode='dark'][data-dark-theme='dark'] :is(.wasp-page, .wasp-dashboard, .wasp-login-card) {
+  --fgColor-default: var(--wasp-text-dark);
+  --fgColor-muted: var(--wasp-muted-dark);
+  --fgColor-accent: var(--wasp-accent-dark);
+}
+
+html[data-color-mode='light'][data-light-theme='light'] :is(.wasp-page, .wasp-dashboard, .wasp-login-card) {
+  --fgColor-default: var(--wasp-text-light);
+  --fgColor-muted: var(--wasp-muted-light);
+  --fgColor-accent: var(--wasp-accent-light);
+}
+
+:is(.wasp-page, .wasp-dashboard, .wasp-login-card) :is(h1, h2, h3, strong, .wasp-preview-title, .wasp-preview-brand) {
+  color: var(--fgColor-default);
 }
 
 .wasp-page .wasp-wordmark,
@@ -43,7 +67,7 @@ html[data-color-mode='light'][data-light-theme='light'] {
 }
 
 .wasp-page .wasp-eyebrow {
-  color: var(--wasp-accent-dark);
+  color: var(--fgColor-accent);
 }
 
 * {
@@ -507,6 +531,13 @@ html[data-color-mode='light'] .wasp-vault-card button[data-variant='primary'] {
   flex-wrap: wrap;
   gap: 12px 24px;
   padding-left: 20px;
+}
+
+.wasp-environment-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .wasp-share-permission {

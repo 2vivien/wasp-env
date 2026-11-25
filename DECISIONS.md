@@ -7,3 +7,8 @@
 - **Vitest:** isolated cryptographic unit tests run without Next.js or application services.
 
 The password, root, and vault keys stay in memory only. This does not replace authentication, authorization, or a security audit before public launch.
+
+## 2026-11-25 — Green text palette
+
+- **Green foregrounds for ordinary interface text:** applied through Primer functional tokens so light and dark themes retain readable contrast. Error and destructive states keep semantic status colors instead of being recolored green.
+- **Reason:** explicit product-owner request; semantic status colors remain distinct to preserve accessible feedback.
