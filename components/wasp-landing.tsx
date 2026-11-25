@@ -1,12 +1,13 @@
+import NextLink from 'next/link'
 import { Button, Heading, Link, Text } from '@primer/react'
 
 export function WaspLanding() {
   return (
     <main className="wasp-page">
       <header className="wasp-header">
-        <a className="wasp-wordmark" href="/" aria-label="Wasp, accueil">
+        <NextLink className="wasp-wordmark" href="/" aria-label="Wasp, accueil">
           Wasp
-        </a>
+        </NextLink>
         <nav className="wasp-header-actions" aria-label="Navigation principale">
           <Link href="#security">Sécurité</Link>
           <Button as="a" href="/login" variant="default">
