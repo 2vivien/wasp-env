@@ -15,6 +15,8 @@ const encryptedBlobSchema = z.object({
 
 const encryptedItemSchema = z.object({
   version: z.number().int().min(1),
+  scopeKeyVersion: z.number().int().min(1).optional(),
+  scopeKeyEnvelope: encryptedBlobSchema.optional(),
   metadata: encryptedBlobSchema,
   value: encryptedBlobSchema,
 }).strict()

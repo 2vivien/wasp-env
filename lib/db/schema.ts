@@ -163,6 +163,99 @@ export const auditLogs = pgTable('audit_logs', {
   createdAt: createdAt(),
 }, (table) => [index('audit_logs_actor_created_idx').on(table.actorId, table.createdAt)])
 
+export const vaultGroups = pgTable('vault_groups', {
+  id: text('id').primaryKey(),
+  ownerId: text('owner_id').notNull(),
+  name: text('name').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [index('vault_groups_owner_idx').on(table.ownerId, table.createdAt)])
+
+export const vaultGroupMembers = pgTable('vault_group_members', {
+  id: text('id').primaryKey(),
+  groupId: text('group_id').notNull(),
+  userId: text('user_id').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('vault_group_members_group_user_unique').on(table.groupId, table.userId),
+  index('vault_group_members_user_idx').on(table.userId, table.groupId),
+])
+
+export const scopedKeyEnvelopes = pgTable('scoped_key_envelopes', {
+  id: text('id').primaryKey(),
+  vaultId: text('vault_id').notNull(),
+  ownerId: text('owner_id').notNull(),
+  resourceType: text('resource_type').$type<'project' | 'secret'>().notNull(),
+  resourceId: text('resource_id').notNull(),
+  keyVersion: integer('key_version').notNull().default(1),
+  ownerEnvelope: jsonb('owner_envelope').notNull(),
+  migratedAt: timestamp('migrated_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [uniqueIndex('scoped_key_envelopes_resource_unique').on(table.ownerId, table.resourceType, table.resourceId, table.keyVersion)])
+
+export const scopedShares = pgTable('scoped_shares', {
+  id: text('id').primaryKey(),
+  vaultId: text('vault_id').notNull(),
+  ownerId: text('owner_id').notNull(),
+  recipientId: text('recipient_id'),
+  groupId: text('group_id'),
+  resourceType: text('resource_type').$type<'project' | 'secret'>().notNull(),
+  resourceId: text('resource_id').notNull(),
+  encryptedScopeKey: jsonb('encrypted_scope_key').notNull(),
+  keyVersion: integer('key_version').notNull().default(1),
+  permissions: jsonb('permissions').notNull(),
+  status: text('status').$type<'pending' | 'accepted' | 'revoked'>().notNull().default('pending'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('scoped_shares_recipient_idx').on(table.recipientId, table.status, table.expiresAt),
+  index('scoped_shares_group_idx').on(table.groupId, table.status),
+])
+
+export const privateShareLinks = pgTable('private_share_links', {
+  id: text('id').primaryKey(),
+  tokenHash: text('token_hash').notNull().unique(),
+  ownerId: text('owner_id').notNull(),
+  vaultId: text('vault_id').notNull(),
+  resourceType: text('resource_type').$type<'project' | 'secret'>().notNull(),
+  resourceId: text('resource_id').notNull(),
+  encryptedPayload: jsonb('encrypted_payload').notNull(),
+  permissions: jsonb('permissions').notNull(),
+  accessCodeHash: text('access_code_hash'),
+  maxUses: integer('max_uses'),
+  useCount: integer('use_count').notNull().default(0),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [index('private_share_links_owner_idx').on(table.ownerId, table.createdAt)])
+
+export const privateShareLinkUses = pgTable('private_share_link_uses', {
+  id: text('id').primaryKey(),
+  linkId: text('link_id').notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }).notNull().defaultNow(),
+  clientFingerprintHash: text('client_fingerprint_hash'),
+})
+
+export const keyRotationJobs = pgTable('key_rotation_jobs', {
+  id: text('id').primaryKey(),
+  vaultId: text('vault_id').notNull(),
+  ownerId: text('owner_id').notNull(),
+  resourceType: text('resource_type').$type<'vault' | 'project' | 'secret'>().notNull(),
+  resourceId: text('resource_id').notNull(),
+  fromVersion: integer('from_version').notNull(),
+  toVersion: integer('to_version').notNull(),
+  status: text('status').$type<'pending' | 'running' | 'completed' | 'failed'>().notNull().default('pending'),
+  cursor: text('cursor'),
+  completedCount: integer('completed_count').notNull().default(0),
+  totalCount: integer('total_count'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [index('key_rotation_jobs_owner_status_idx').on(table.ownerId, table.status, table.updatedAt)])
+
 export const sessionMetadata = pgTable('session_metadata', {
   id: text('id').primaryKey(),
   userId: text('userId').notNull().references(() => user.id, { onDelete: 'cascade' }),

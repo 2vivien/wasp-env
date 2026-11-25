@@ -25,6 +25,27 @@ export async function createIdentityKeyPairs(): Promise<{ encryption: KeyPair; s
   }
 }
 
+export async function sealDataForMember(data: Uint8Array, recipientPublicKey: Uint8Array): Promise<Uint8Array> {
+  await sodium.ready
+  if (data.byteLength < 1 || data.byteLength > 4096 || recipientPublicKey.length !== sodium.crypto_box_PUBLICKEYBYTES) {
+    throw new TypeError('Invalid scoped share input.')
+  }
+  return sodium.crypto_box_seal(data, recipientPublicKey)
+}
+
+export async function openSealedData(
+  envelope: Uint8Array,
+  recipientPublicKey: Uint8Array,
+  recipientPrivateKey: Uint8Array,
+): Promise<Uint8Array> {
+  await sodium.ready
+  if (recipientPublicKey.length !== sodium.crypto_box_PUBLICKEYBYTES || recipientPrivateKey.length !== sodium.crypto_box_SECRETKEYBYTES || envelope.length <= sodium.crypto_box_SEALBYTES) {
+    throw new Error('Unable to open this scoped key envelope.')
+  }
+  try { return sodium.crypto_box_seal_open(envelope, recipientPublicKey, recipientPrivateKey) }
+  catch { throw new Error('Unable to open this scoped key envelope.') }
+}
+
 export async function sealKeyForMember(key: Uint8Array, recipientPublicKey: Uint8Array): Promise<Uint8Array> {
   await sodium.ready
   if (key.length !== 32 || recipientPublicKey.length !== sodium.crypto_box_PUBLICKEYBYTES) {

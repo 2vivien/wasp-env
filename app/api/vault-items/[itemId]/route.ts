@@ -15,6 +15,7 @@ const encryptedBlobSchema = z.object({
 
 const updateItemSchema = z.object({
   vaultId: z.string().uuid(),
+  scopeKeyVersion: z.number().int().min(1).optional(),
   expectedVersion: z.number().int().min(1),
   nextVersion: z.number().int().min(2),
   metadata: encryptedBlobSchema,
@@ -75,6 +76,8 @@ export async function PUT(request: Request, { params }: RouteContext) {
     const rows = await tx.update(vaultItems).set({
       encryptedPayload: {
         version: parsed.data.nextVersion,
+        scopeKeyVersion: parsed.data.scopeKeyVersion ?? current.encryptedPayload.scopeKeyVersion ?? 1,
+        scopeKeyEnvelope: current.encryptedPayload.scopeKeyEnvelope,
         metadata: parsed.data.metadata,
         value: parsed.data.value,
         history,

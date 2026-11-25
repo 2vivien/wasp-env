@@ -8,6 +8,7 @@ import { openSealedKey } from '@/src/crypto/keys'
 import { recoverIdentityPrivateKeys, unlockIdentityPrivateKeys } from '@/src/crypto/identity-material'
 import { removeKey, storeKey } from '@/src/crypto/key-store'
 import { VaultItemsPanel } from './vault-items-panel'
+import { ScopedSharesWorkspace } from './scoped-shares-workspace'
 
 type Share = { id: string; vaultId: string; encryptedVaultKey: { v: 1; alg: 'X25519-SEAL'; ct: string }; permission: 'read' | 'write'; status: 'pending' | 'accepted'; expiresAt: string | null; createdAt: string; ownerName: string | null }
 
@@ -76,10 +77,11 @@ export function SharedVaultWorkspace() {
     setUnlocked((current) => current.filter((id) => id !== share.id))
   }
 
-  return <main className="wasp-dashboard"><header className="wasp-dashboard-header"><a className="wasp-wordmark" href="/dashboard">Wasp</a><nav className="wasp-dashboard-nav" aria-label="Navigation principale"><a href="/dashboard">Coffre</a><a href="/projects">Projets</a><a href="/security">Sécurité</a></nav></header><section className="wasp-dashboard-content"><Text className="wasp-eyebrow">COFFRES PARTAGÉS</Text><Heading as="h1">Invitations et accès</Heading><Text>Les clés de coffre sont scellées pour votre identité et ne transitent jamais en clair.</Text>
+  return <main className="wasp-dashboard"><header className="wasp-dashboard-header"><a className="wasp-wordmark" href="/dashboard">Wasp</a><nav className="wasp-dashboard-nav" aria-label="Navigation principale"><a href="/dashboard">Coffre</a><a href="/projects">Projets</a><a href="/groups">Groupes</a><a href="/security">Sécurité</a></nav></header><section className="wasp-dashboard-content"><Text className="wasp-eyebrow">COFFRES PARTAGÉS</Text><Heading as="h1">Invitations et accès</Heading><Text>Les clés de coffre sont scellées pour votre identité et ne transitent jamais en clair.</Text>
     {data?.shares.some((share) => share.status === 'accepted') && <div className="wasp-inline-action"><label className="wasp-field"><span>Mode de déverrouillage</span><select aria-label="Mode de déverrouillage" value={unlockMode} onChange={(event) => setUnlockMode(event.target.value as 'passphrase' | 'recovery')}><option value="passphrase">Phrase secrète</option><option value="recovery">Clé de récupération</option></select></label><label className="wasp-field"><span>{unlockMode === 'passphrase' ? 'Phrase secrète de vos clés de partage' : 'Clé de récupération'}</span><TextInput type={unlockMode === 'passphrase' ? 'password' : 'text'} autoComplete="off" value={passphrase} onChange={(event) => setPassphrase(event.target.value)} /></label><Button variant="primary" disabled={busy || passphrase.trim().length < (unlockMode === 'passphrase' ? 12 : 43)} onClick={() => void unlockAcceptedShares()}>{busy ? 'Déverrouillage…' : 'Déverrouiller les coffres acceptés'}</Button></div>}
     {notice && <Text role="status">{notice}</Text>}{error && <Text role="alert">Impossible de charger les invitations.</Text>}
     {data?.shares.map((share) => <article className="wasp-vault-card" key={share.id}><div><Heading as="h2">Coffre de {share.ownerName ?? 'un utilisateur'}</Heading><Text size="small">{share.permission === 'read' ? 'Lecture seule' : 'Lecture et écriture'} · {share.status === 'pending' ? 'Invitation en attente' : 'Acceptée'}</Text></div>{share.status === 'pending' && <Button variant="primary" disabled={busy} onClick={() => void accept(share.id)}>Accepter l’invitation</Button>}{unlocked.includes(share.id) && <VaultItemsPanel vaultId={share.vaultId} onLock={() => lockShare(share)} canWrite={share.permission === 'write'} allowShare={false} />}</article>)}
     {data && data.shares.length === 0 && <Text>Aucune invitation pour le moment.</Text>}
+    <ScopedSharesWorkspace />
   </section></main>
 }

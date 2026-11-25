@@ -1,29 +1,55 @@
-import { decryptBytes, deriveObjectKey, encryptBytes, importRootKey } from './aead'
+import { decryptBytes, deriveObjectKey, deriveObjectKeyBytes, encryptBytes, importAesKey, importRootKey } from './aead'
+import { decodeBase64Url, encodeBase64Url, randomBytes, wipeBytes } from './encoding'
 import { withKey } from './key-store'
-import type { EncryptedVaultItem } from './vault-key'
+import type { EncryptedVaultItem, KeyEnvelope } from './vault-key'
 
 export type VaultItemKind = 'secret' | 'env-file'
 export type VaultItemMetadata = { name: string; kind: VaultItemKind }
+export type VaultItemScopeKeys = { metadataKey: Uint8Array; secretKey: Uint8Array }
+
+async function openScopeKeys(rawRootKey: Uint8Array, vaultId: string, itemId: string, item: Pick<EncryptedVaultItem, 'scopeKeyEnvelope' | 'scopeKeyVersion'>): Promise<VaultItemScopeKeys> {
+  if (!item.scopeKeyEnvelope) {
+    return {
+      metadataKey: await deriveObjectKeyBytes(rawRootKey, 'metadata', itemId, item.scopeKeyVersion ?? 1),
+      secretKey: await deriveObjectKeyBytes(rawRootKey, 'secret', itemId, item.scopeKeyVersion ?? 1),
+    }
+  }
+  const rootKey = await importRootKey(rawRootKey)
+  const wrappingKey = await deriveObjectKey(rootKey, 'metadata', itemId)
+  const version = item.scopeKeyVersion ?? 1
+  const plaintext = await decryptBytes(wrappingKey, item.scopeKeyEnvelope, { vaultId, objectType: 'scope-key', objectId: itemId, version })
+  try {
+    const parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(plaintext)) as { metadataKey?: unknown; secretKey?: unknown }
+    if (typeof parsed.metadataKey !== 'string' || typeof parsed.secretKey !== 'string') throw new Error('Invalid scope key envelope.')
+    const metadataKey = decodeBase64Url(parsed.metadataKey)
+    const secretKey = decodeBase64Url(parsed.secretKey)
+    if (metadataKey.length !== 32 || secretKey.length !== 32) { wipeBytes(metadataKey); wipeBytes(secretKey); throw new Error('Invalid scope key envelope.') }
+    return { metadataKey, secretKey }
+  } finally { wipeBytes(plaintext) }
+}
+
+async function sealScopeKeys(rawRootKey: Uint8Array, vaultId: string, itemId: string, version: number, keys: VaultItemScopeKeys): Promise<KeyEnvelope> {
+  const rootKey = await importRootKey(rawRootKey)
+  const wrappingKey = await deriveObjectKey(rootKey, 'metadata', itemId)
+  const plaintext = new TextEncoder().encode(JSON.stringify({ metadataKey: encodeBase64Url(keys.metadataKey), secretKey: encodeBase64Url(keys.secretKey) }))
+  try { return await encryptBytes(wrappingKey, plaintext, { vaultId, objectType: 'scope-key', objectId: itemId, version }) }
+  finally { wipeBytes(plaintext) }
+}
+
+export async function getVaultItemScopeKeys(vaultId: string, itemId: string, item: EncryptedVaultItem): Promise<VaultItemScopeKeys> {
+  return withKey(vaultId, (rawRootKey) => openScopeKeys(rawRootKey, vaultId, itemId, item))
+}
 
 export async function decryptVaultItemMetadata(vaultId: string, itemId: string, item: EncryptedVaultItem): Promise<VaultItemMetadata> {
   return withKey(vaultId, async (rawRootKey) => {
-    const rootKey = await importRootKey(rawRootKey)
-    const key = await deriveObjectKey(rootKey, 'metadata', itemId)
-    const bytes = await decryptBytes(key, item.metadata, {
-      vaultId,
-      objectType: 'secret-meta',
-      objectId: itemId,
-      version: item.version,
-    })
+    const scopeKeys = await openScopeKeys(rawRootKey, vaultId, itemId, item)
+    const key = await importAesKey(scopeKeys.metadataKey, ['decrypt'])
+    let bytes: Uint8Array | undefined
     try {
+      bytes = await decryptBytes(key, item.metadata, { vaultId, objectType: 'secret-meta', objectId: itemId, version: item.version })
       const parsed = JSON.parse(new TextDecoder().decode(bytes)) as { name?: unknown; kind?: unknown }
-      return {
-        name: typeof parsed.name === 'string' ? parsed.name : 'Secret sans nom',
-        kind: parsed.kind === 'env-file' ? 'env-file' : 'secret',
-      }
-    } finally {
-      bytes.fill(0)
-    }
+      return { name: typeof parsed.name === 'string' ? parsed.name : 'Secret sans nom', kind: parsed.kind === 'env-file' ? 'env-file' : 'secret' }
+    } finally { if (bytes) wipeBytes(bytes); wipeBytes(scopeKeys.metadataKey); wipeBytes(scopeKeys.secretKey) }
   })
 }
 
@@ -34,24 +60,83 @@ export async function decryptVaultItemValue(
   kind: VaultItemKind = 'secret',
 ): Promise<string> {
   return withKey(vaultId, async (rawRootKey) => {
-    const rootKey = await importRootKey(rawRootKey)
-    const key = await deriveObjectKey(rootKey, 'secret', itemId)
-    const bytes = await decryptBytes(key, item.value, {
-      vaultId,
-      objectType: 'secret',
-      objectId: itemId,
-      version: item.version,
-    })
+    const scopeKeys = await openScopeKeys(rawRootKey, vaultId, itemId, item)
+    const key = await importAesKey(scopeKeys.secretKey, ['decrypt'])
+    let bytes: Uint8Array | undefined
     try {
+      bytes = await decryptBytes(key, item.value, { vaultId, objectType: 'secret', objectId: itemId, version: item.version })
       const decoded = kind === 'env-file'
         ? new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)
         : new TextDecoder().decode(bytes)
       if (kind === 'env-file') return decoded
       const parsed = JSON.parse(decoded) as { value?: unknown }
       return typeof parsed.value === 'string' ? parsed.value : ''
-    } finally {
-      bytes.fill(0)
-    }
+    } finally { if (bytes) wipeBytes(bytes); wipeBytes(scopeKeys.metadataKey); wipeBytes(scopeKeys.secretKey) }
+  })
+}
+
+export async function decryptVaultItemMetadataWithScopeKey(vaultId: string, itemId: string, item: EncryptedVaultItem, metadataKeyBytes: Uint8Array): Promise<VaultItemMetadata> {
+  const key = await importAesKey(metadataKeyBytes, ['decrypt'])
+  const bytes = await decryptBytes(key, item.metadata, { vaultId, objectType: 'secret-meta', objectId: itemId, version: item.version })
+  try {
+    const parsed = JSON.parse(new TextDecoder().decode(bytes)) as { name?: unknown; kind?: unknown }
+    return { name: typeof parsed.name === 'string' ? parsed.name : 'Secret sans nom', kind: parsed.kind === 'env-file' ? 'env-file' : 'secret' }
+  } finally { bytes.fill(0) }
+}
+
+export async function decryptVaultItemValueWithScopeKey(vaultId: string, itemId: string, item: EncryptedVaultItem, secretKeyBytes: Uint8Array, kind: VaultItemKind = 'secret'): Promise<string> {
+  const key = await importAesKey(secretKeyBytes, ['decrypt'])
+  const bytes = await decryptBytes(key, item.value, { vaultId, objectType: 'secret', objectId: itemId, version: item.version })
+  try {
+    const decoded = kind === 'env-file' ? new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes) : new TextDecoder().decode(bytes)
+    if (kind === 'env-file') return decoded
+    const parsed = JSON.parse(decoded) as { value?: unknown }
+    return typeof parsed.value === 'string' ? parsed.value : ''
+  } finally { bytes.fill(0) }
+}
+
+export async function rotateVaultItemPayload(vaultId: string, itemId: string, item: EncryptedVaultItem, nextScopeKeyVersion: number): Promise<EncryptedVaultItem> {
+  const currentScopeKeyVersion = item.scopeKeyVersion ?? 1
+  if (!Number.isSafeInteger(nextScopeKeyVersion) || nextScopeKeyVersion !== currentScopeKeyVersion + 1) throw new TypeError('Invalid next key version.')
+  return withKey(vaultId, async (rawRootKey) => {
+    const oldKeys = await openScopeKeys(rawRootKey, vaultId, itemId, item)
+    const nextKeys = { metadataKey: randomBytes(32), secretKey: randomBytes(32) }
+    try {
+      const oldMetadataKey = await importAesKey(oldKeys.metadataKey, ['decrypt'])
+      const oldSecretKey = await importAesKey(oldKeys.secretKey, ['decrypt'])
+      const nextMetadataKey = await importAesKey(nextKeys.metadataKey)
+      const nextSecretKey = await importAesKey(nextKeys.secretKey)
+      const history = await Promise.all((item.history ?? []).map(async (revision) => {
+        const context = { vaultId, objectId: itemId, version: revision.version }
+        const metadataBytes = await decryptBytes(oldMetadataKey, revision.metadata, { ...context, objectType: 'secret-meta' })
+        let valueBytes: Uint8Array | undefined
+        try {
+          valueBytes = await decryptBytes(oldSecretKey, revision.value, { ...context, objectType: 'secret' })
+          const [metadata, value] = await Promise.all([
+            encryptBytes(nextMetadataKey, metadataBytes, { ...context, objectType: 'secret-meta' }),
+            encryptBytes(nextSecretKey, valueBytes, { ...context, objectType: 'secret' }),
+          ])
+          return { version: revision.version, metadata, value, createdAt: revision.createdAt }
+        } finally { wipeBytes(metadataBytes); if (valueBytes) wipeBytes(valueBytes) }
+      }))
+
+      const currentContext = { vaultId, objectId: itemId, version: item.version }
+      const currentMetadataBytes = await decryptBytes(oldMetadataKey, item.metadata, { ...currentContext, objectType: 'secret-meta' })
+      let currentValueBytes: Uint8Array | undefined
+      const nextVersion = item.version + 1
+      try {
+        currentValueBytes = await decryptBytes(oldSecretKey, item.value, { ...currentContext, objectType: 'secret' })
+        const [metadata, value, oldCurrentMetadata, oldCurrentValue] = await Promise.all([
+          encryptBytes(nextMetadataKey, currentMetadataBytes, { vaultId, objectType: 'secret-meta', objectId: itemId, version: nextVersion }),
+          encryptBytes(nextSecretKey, currentValueBytes, { vaultId, objectType: 'secret', objectId: itemId, version: nextVersion }),
+          encryptBytes(nextMetadataKey, currentMetadataBytes, { ...currentContext, objectType: 'secret-meta' }),
+          encryptBytes(nextSecretKey, currentValueBytes, { ...currentContext, objectType: 'secret' }),
+        ])
+        history.push({ version: item.version, metadata: oldCurrentMetadata, value: oldCurrentValue, createdAt: new Date().toISOString() })
+        const scopeKeyEnvelope = await sealScopeKeys(rawRootKey, vaultId, itemId, nextScopeKeyVersion, nextKeys)
+        return { version: nextVersion, scopeKeyVersion: nextScopeKeyVersion, scopeKeyEnvelope, metadata, value, history: history.slice(-49) }
+      } finally { wipeBytes(currentMetadataBytes); if (currentValueBytes) wipeBytes(currentValueBytes) }
+    } finally { wipeBytes(oldKeys.metadataKey); wipeBytes(oldKeys.secretKey); wipeBytes(nextKeys.metadataKey); wipeBytes(nextKeys.secretKey) }
   })
 }
 
@@ -62,19 +147,29 @@ export async function encryptVaultItemPayload(
   name: string,
   value: string,
   kind: VaultItemKind = 'secret',
+  scopeKeyVersion = 1,
+  scopeKeyEnvelope?: KeyEnvelope,
+  legacyMode = false,
 ): Promise<EncryptedVaultItem> {
   const metadataBytes = new TextEncoder().encode(JSON.stringify({ name: name.trim(), kind }))
   const valueBytes = new TextEncoder().encode(kind === 'env-file' ? value : JSON.stringify({ value }))
   try {
     return await withKey(vaultId, async (rawRootKey) => {
-      const rootKey = await importRootKey(rawRootKey)
-      const metadataKey = await deriveObjectKey(rootKey, 'metadata', itemId)
-      const secretKey = await deriveObjectKey(rootKey, 'secret', itemId)
-      const [metadata, encryptedValue] = await Promise.all([
-        encryptBytes(metadataKey, metadataBytes, { vaultId, objectType: 'secret-meta', objectId: itemId, version }),
-        encryptBytes(secretKey, valueBytes, { vaultId, objectType: 'secret', objectId: itemId, version }),
-      ])
-      return { version, metadata, value: encryptedValue }
+      const scopeKeys = scopeKeyEnvelope
+        ? await openScopeKeys(rawRootKey, vaultId, itemId, { scopeKeyEnvelope, scopeKeyVersion })
+        : legacyMode
+          ? await openScopeKeys(rawRootKey, vaultId, itemId, { scopeKeyVersion })
+          : { metadataKey: randomBytes(32), secretKey: randomBytes(32) }
+      try {
+        const metadataKey = await importAesKey(scopeKeys.metadataKey)
+        const secretKey = await importAesKey(scopeKeys.secretKey)
+        const [metadata, encryptedValue] = await Promise.all([
+          encryptBytes(metadataKey, metadataBytes, { vaultId, objectType: 'secret-meta', objectId: itemId, version }),
+          encryptBytes(secretKey, valueBytes, { vaultId, objectType: 'secret', objectId: itemId, version }),
+        ])
+        const wrappedScopeKey = scopeKeyEnvelope ?? (legacyMode ? undefined : await sealScopeKeys(rawRootKey, vaultId, itemId, scopeKeyVersion, scopeKeys))
+        return { version, scopeKeyVersion, ...(wrappedScopeKey ? { scopeKeyEnvelope: wrappedScopeKey } : {}), metadata, value: encryptedValue }
+      } finally { wipeBytes(scopeKeys.metadataKey); wipeBytes(scopeKeys.secretKey) }
     })
   } finally {
     metadataBytes.fill(0)

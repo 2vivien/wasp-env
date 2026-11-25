@@ -82,23 +82,33 @@ export async function deriveObjectKey(
   rootKey: CryptoKey,
   purpose: 'secret' | 'metadata',
   objectId: string,
+  scopeVersion = 1,
 ): Promise<CryptoKey> {
-  if (!SAFE_ID_PATTERN.test(objectId)) {
-    throw new TypeError('Invalid object identifier.')
-  }
+  if (!SAFE_ID_PATTERN.test(objectId) || !Number.isSafeInteger(scopeVersion) || scopeVersion < 1) throw new TypeError('Invalid object identifier or key version.')
+  const info = scopeVersion === 1 ? `wasp:v1:${purpose}:${objectId}` : `wasp:v1:${purpose}:${objectId}:scope:${scopeVersion}`
 
   return crypto.subtle.deriveKey(
-    {
-      name: 'HKDF',
-      hash: 'SHA-256',
-      salt: toArrayBuffer(new Uint8Array(32)),
-      info: toArrayBuffer(new TextEncoder().encode(`wasp:v1:${purpose}:${objectId}`)),
-    },
+    { name: 'HKDF', hash: 'SHA-256', salt: toArrayBuffer(new Uint8Array(32)), info: toArrayBuffer(new TextEncoder().encode(info)) },
     rootKey,
     { name: 'AES-GCM', length: 256 },
     false,
     ['encrypt', 'decrypt'],
   )
+}
+
+export async function deriveObjectKeyBytes(rawRootKey: Uint8Array, purpose: 'secret' | 'metadata', objectId: string, scopeVersion = 1): Promise<Uint8Array> {
+  if (rawRootKey.byteLength !== 32 || !SAFE_ID_PATTERN.test(objectId) || !Number.isSafeInteger(scopeVersion) || scopeVersion < 1) throw new TypeError('Invalid scoped key input.')
+  const hkdfKey = await crypto.subtle.importKey('raw', toArrayBuffer(rawRootKey), 'HKDF', false, ['deriveBits'])
+  const info = scopeVersion === 1 ? `wasp:v1:${purpose}:${objectId}` : `wasp:v1:${purpose}:${objectId}:scope:${scopeVersion}`
+  return new Uint8Array(await crypto.subtle.deriveBits({
+    name: 'HKDF', hash: 'SHA-256', salt: toArrayBuffer(new Uint8Array(32)),
+    info: toArrayBuffer(new TextEncoder().encode(info)),
+  }, hkdfKey, 256))
+}
+
+export async function importAesKey(rawKey: Uint8Array, usages: KeyUsage[] = ['encrypt', 'decrypt']): Promise<CryptoKey> {
+  if (rawKey.byteLength !== 32) throw new TypeError('A 256-bit AES key is required.')
+  return crypto.subtle.importKey('raw', toArrayBuffer(rawKey), 'AES-GCM', false, usages)
 }
 
 export async function encryptBytes(

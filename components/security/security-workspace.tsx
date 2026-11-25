@@ -6,6 +6,7 @@ import useSWR from 'swr'
 import { Button, Heading, Text, TextInput } from '@primer/react'
 import { IdentityKeySetup } from './identity-key-setup'
 import { SecurityBackup } from './security-backup'
+import { PrivateLinksManager } from './private-links-manager'
 
 type SessionItem = { id: string; createdAt: string; updatedAt: string; expiresAt: string; userAgent: string | null; ipAddress: string | null; isCurrent: boolean }
 type AuditEvent = { id: string; event: string; targetKind: string; targetId: string | null; metadata: Record<string, string | number | boolean>; createdAt: string }
@@ -47,9 +48,10 @@ export function SecurityWorkspace({ userEmail }: { userEmail: string }) {
       setDeletingAccount(false)
     }
   }
-  return <main className="wasp-dashboard"><header className="wasp-dashboard-header"><a className="wasp-wordmark" href="/dashboard">Wasp</a><Text>Sécurité</Text></header><section className="wasp-dashboard-content"><Text className="wasp-eyebrow">CONTRÔLE DU COMPTE</Text><Heading as="h1">Sécurité et activité</Heading><Text>Gérez les appareils connectés et consultez les événements récents de votre compte.</Text>
+  return <main className="wasp-dashboard"><header className="wasp-dashboard-header"><a className="wasp-wordmark" href="/dashboard">Wasp</a><nav className="wasp-dashboard-nav" aria-label="Navigation principale"><a href="/dashboard">Coffre</a><a href="/projects">Projets</a><a href="/groups">Groupes</a><a href="/shared">Partagés</a></nav><Text>Sécurité</Text></header><section className="wasp-dashboard-content"><Text className="wasp-eyebrow">CONTRÔLE DU COMPTE</Text><Heading as="h1">Sécurité et activité</Heading><Text>Gérez les appareils connectés et consultez les événements récents de votre compte.</Text>
     <IdentityKeySetup />
     <SecurityBackup />
+    <PrivateLinksManager />
     <section className="wasp-vault-card" aria-labelledby="delete-account-title">
       <Heading as="h2" id="delete-account-title">Supprimer le compte</Heading>
       <Text>Cette action supprime vos coffres, projets, secrets chiffrés, partages, clés et sessions. Elle est définitive et ne peut pas être annulée.</Text>

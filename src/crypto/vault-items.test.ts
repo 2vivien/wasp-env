@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { lockKeyStore, storeKey } from './key-store'
 import { createAccountKey } from './keys'
-import { decryptVaultItemMetadata, decryptVaultItemValue, encryptVaultItemPayload } from './vault-items'
+import { decryptVaultItemMetadata, decryptVaultItemValue, encryptVaultItemPayload, rotateVaultItemPayload } from './vault-items'
 import { wipeBytes } from './encoding'
 
 const rootKeys: Uint8Array[] = []
@@ -23,6 +23,24 @@ describe('encrypted vault items', () => {
     expect(item.value.ct).not.toContain('private-value')
     await expect(decryptVaultItemMetadata(vaultId, itemId, item)).resolves.toEqual({ name: 'Production API key', kind: 'secret' })
     await expect(decryptVaultItemValue(vaultId, itemId, item)).resolves.toBe('private-value')
+  })
+
+  it('rotates a secret key and re-encrypts every historical revision', async () => {
+    const vaultId = crypto.randomUUID()
+    const itemId = crypto.randomUUID()
+    const rootKey = createAccountKey()
+    rootKeys.push(rootKey)
+    storeKey(vaultId, rootKey)
+    const first = await encryptVaultItemPayload(vaultId, itemId, 1, 'API key', 'old value')
+    const current = await encryptVaultItemPayload(vaultId, itemId, 2, 'API key', 'current value', 'secret', 1, first.scopeKeyEnvelope)
+    current.history = [{ version: 1, metadata: first.metadata, value: first.value, createdAt: new Date().toISOString() }]
+
+    const rotated = await rotateVaultItemPayload(vaultId, itemId, current, 2)
+    expect(rotated.scopeKeyVersion).toBe(2)
+    expect(await decryptVaultItemValue(vaultId, itemId, rotated)).toBe('current value')
+    const oldRevision = { ...rotated, version: rotated.history?.[0]?.version ?? 1, metadata: rotated.history?.[0]?.metadata ?? rotated.metadata, value: rotated.history?.[0]?.value ?? rotated.value }
+    await expect(decryptVaultItemValue(vaultId, itemId, oldRevision)).resolves.toBe('old value')
+    await expect(decryptVaultItemMetadata(vaultId, itemId, oldRevision)).resolves.toEqual({ name: 'API key', kind: 'secret' })
   })
 
   it('round-trips an environment file without changing its BOM or line endings', async () => {

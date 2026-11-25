@@ -1,8 +1,8 @@
-import { eq, or } from 'drizzle-orm'
+import { eq, inArray, or } from 'drizzle-orm'
 import { hasValidMutationHeaders, jsonNoStore } from '@/lib/api'
 import { getCurrentSession } from '@/lib/auth/session'
 import { db } from '@/lib/db'
-import { auditLogs, environments, envFiles, projects, userKeyMaterial, vaultItems, vaultShares, vaults } from '@/lib/db/schema'
+import { auditLogs, environments, envFiles, keyRotationJobs, privateShareLinks, projects, scopedKeyEnvelopes, scopedShares, userKeyMaterial, vaultGroupMembers, vaultGroups, vaultItems, vaultShares, vaults } from '@/lib/db/schema'
 
 export async function POST(request: Request) {
   const session = await getCurrentSession()
@@ -12,12 +12,19 @@ export async function POST(request: Request) {
   const userId = session.user.id
   const ownedVaults = await db.select().from(vaults).where(eq(vaults.userId, userId))
   const vaultIds = ownedVaults.map(({ id }) => id)
-  const [items, ownedProjects, shares, keyMaterial] = await Promise.all([
+  const [items, ownedProjects, shares, keyMaterial, groups, ownedScopedShares, privateLinks, keyEnvelopes, rotationJobs] = await Promise.all([
     vaultIds.length ? db.select().from(vaultItems).where(eq(vaultItems.userId, userId)) : Promise.resolve([]),
     db.select().from(projects).where(eq(projects.userId, userId)),
     db.select().from(vaultShares).where(or(eq(vaultShares.ownerId, userId), eq(vaultShares.recipientId, userId))),
     db.select().from(userKeyMaterial).where(eq(userKeyMaterial.userId, userId)).limit(1),
+    db.select().from(vaultGroups).where(eq(vaultGroups.ownerId, userId)),
+    db.select().from(scopedShares).where(eq(scopedShares.ownerId, userId)),
+    db.select().from(privateShareLinks).where(eq(privateShareLinks.ownerId, userId)),
+    db.select().from(scopedKeyEnvelopes).where(eq(scopedKeyEnvelopes.ownerId, userId)),
+    db.select().from(keyRotationJobs).where(eq(keyRotationJobs.ownerId, userId)),
   ])
+  const groupIds = groups.map(({ id }) => id)
+  const groupMembers = groupIds.length ? await db.select().from(vaultGroupMembers).where(inArray(vaultGroupMembers.groupId, groupIds)) : []
   const projectIds = ownedProjects.map(({ id }) => id)
   const environmentRows = projectIds.length
     ? await db.select().from(environments).where(eq(environments.userId, userId))
@@ -46,5 +53,11 @@ export async function POST(request: Request) {
     envFiles: files,
     shares,
     keyMaterial: keyMaterial[0] ?? null,
+    groups,
+    groupMembers,
+    scopedKeyEnvelopes: keyEnvelopes,
+    scopedShares: ownedScopedShares,
+    privateLinks,
+    keyRotationJobs: rotationJobs,
   })
 }

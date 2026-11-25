@@ -47,7 +47,7 @@ export function VaultItemsPanel({ vaultId, onLock, canWrite = true, allowShare =
       {canWrite && <VaultItemForm vaultId={vaultId} onSaved={() => void mutate()} />}
       {isLoading && <Text role="status">Chargement des éléments chiffrés…</Text>}
       {error && <Text role="alert" className="wasp-auth-error">Impossible de charger le coffre. Réessayez.</Text>}
-      {data && <VaultItemList vaultId={vaultId} items={data.items} onDelete={deleteItem} onUpdated={refreshItems} canWrite={canWrite} />}
+      {data && <VaultItemList vaultId={vaultId} items={data.items} onDelete={deleteItem} onUpdated={refreshItems} canWrite={canWrite} canShare={allowShare} />}
       {allowShare && <VaultSharePanel vaultId={vaultId} />}
       {!canWrite && <Text size="small">Accès en lecture seule.</Text>}
     </section>

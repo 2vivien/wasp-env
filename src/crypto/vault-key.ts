@@ -20,6 +20,8 @@ export type KdfParameters = Argon2Parameters
 
 export type EncryptedVaultItem = {
   version: number
+  scopeKeyVersion?: number
+  scopeKeyEnvelope?: KeyEnvelope
   metadata: KeyEnvelope
   value: KeyEnvelope
   history?: Array<{

@@ -36,7 +36,7 @@ export function VaultItemEditor({
     const nextVersion = expectedVersion + 1
 
     try {
-      const encryptedPayload = await encryptVaultItemPayload(vaultId, item.id, nextVersion, name, value)
+      const encryptedPayload = await encryptVaultItemPayload(vaultId, item.id, nextVersion, name, value, 'secret', item.encryptedPayload.scopeKeyVersion ?? 1, item.encryptedPayload.scopeKeyEnvelope, !item.encryptedPayload.scopeKeyEnvelope)
       const response = await fetch(`/api/vault-items/${item.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

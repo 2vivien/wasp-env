@@ -1,8 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import useSWR from 'swr'
+import QRCode from 'qrcode'
+import Image from 'next/image'
 import { Button, Text, TextInput } from '@primer/react'
-import { decryptVaultItemMetadata, decryptVaultItemValue, encryptVaultItemPayload } from '@/src/crypto/vault-items'
+import { decodeBase64Url, encodeBase64Url, randomBytes, wipeBytes } from '@/src/crypto/encoding'
+import { sealDataForMember } from '@/src/crypto/keys'
+import { decryptVaultItemMetadata, decryptVaultItemValue, encryptVaultItemPayload, getVaultItemScopeKeys, rotateVaultItemPayload } from '@/src/crypto/vault-items'
 import type { EncryptedVaultItem } from '@/src/crypto/vault-key'
 import type { VaultItemKind } from '@/src/crypto/vault-items'
 import { VaultItemEditor } from './vault-item-editor'
@@ -10,6 +15,19 @@ import { VaultItemEditor } from './vault-item-editor'
 type Item = { id: string; encryptedPayload: EncryptedVaultItem }
 type ItemName = { id: string; name: string; kind: VaultItemKind; item: Item }
 type EditingItem = ItemName & { value: string }
+type ShareGroup = { id: string; name: string; members: Array<{ userId: string; handle: string | null }> }
+
+async function fetchShareGroups(url: string): Promise<{ groups: ShareGroup[] }> {
+  const response = await fetch(url, { cache: 'no-store' })
+  if (!response.ok) throw new Error('Impossible de charger les groupes.')
+  return response.json() as Promise<{ groups: ShareGroup[] }>
+}
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength)
+  new Uint8Array(buffer).set(bytes)
+  return buffer
+}
 
 export function VaultItemList({
   vaultId,
@@ -17,13 +35,16 @@ export function VaultItemList({
   onDelete,
   onUpdated,
   canWrite = true,
+  canShare = true,
 }: {
   vaultId: string
   items: Item[]
   onDelete: (id: string) => Promise<void>
   onUpdated: () => Promise<void>
   canWrite?: boolean
+  canShare?: boolean
 }) {
+  const { data: groupsData } = useSWR('/api/groups', fetchShareGroups, { revalidateOnFocus: false })
   const [nameResult, setNameResult] = useState<{ signature: string; items: ItemName[] } | null>(null)
   const [editing, setEditing] = useState<EditingItem | null>(null)
   const [revealed, setRevealed] = useState<Record<string, string>>({})
@@ -31,6 +52,15 @@ export function VaultItemList({
   const [hasError, setHasError] = useState(false)
   const [query, setQuery] = useState('')
   const [historyItemId, setHistoryItemId] = useState<string | null>(null)
+  const [createdLink, setCreatedLink] = useState<{ id: string; itemId: string; url: string; qr: string } | null>(null)
+  const [linkBusy, setLinkBusy] = useState(false)
+  const [sharingItemId, setSharingItemId] = useState<string | null>(null)
+  const [shareHandle, setShareHandle] = useState('')
+  const [shareGroupId, setShareGroupId] = useState('')
+  const [shareBusy, setShareBusy] = useState(false)
+  const [shareNotice, setShareNotice] = useState('')
+  const [rotationBusy, setRotationBusy] = useState(false)
+  const [rotationNotice, setRotationNotice] = useState('')
   const timers = useRef(new Map<string, number>())
   const signature = items.map((item) => `${item.id}:${item.encryptedPayload.version}`).join('|')
   const names = nameResult?.signature === signature ? nameResult.items : []
@@ -106,7 +136,7 @@ export function VaultItemList({
         decryptVaultItemValue(vaultId, entry.id, previous, entry.kind),
       ])
       const nextVersion = entry.item.encryptedPayload.version + 1
-      const payload = await encryptVaultItemPayload(vaultId, entry.id, nextVersion, metadata.name, value, metadata.kind)
+      const payload = await encryptVaultItemPayload(vaultId, entry.id, nextVersion, metadata.name, value, metadata.kind, entry.item.encryptedPayload.scopeKeyVersion ?? 1, entry.item.encryptedPayload.scopeKeyEnvelope, !entry.item.encryptedPayload.scopeKeyEnvelope)
       const response = await fetch(`/api/vault-items/${entry.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -153,6 +183,165 @@ export function VaultItemList({
     }
   }
 
+  async function handleCreatePrivateLink(entry: ItemName) {
+    setLinkBusy(true)
+    setCreatedLink(null)
+    setNotice('')
+    let keyBytes: Uint8Array | undefined
+    let nonce: Uint8Array | undefined
+    let plaintext: Uint8Array | undefined
+    let ciphertext: Uint8Array | undefined
+    let tokenBytes: Uint8Array | undefined
+    try {
+      const value = await decryptVaultItemValue(vaultId, entry.id, entry.item.encryptedPayload, entry.kind)
+      keyBytes = randomBytes(32)
+      tokenBytes = randomBytes(32)
+      nonce = randomBytes(12)
+      plaintext = new TextEncoder().encode(JSON.stringify({ name: entry.name, value, kind: entry.kind }))
+      const key = await crypto.subtle.importKey('raw', toArrayBuffer(keyBytes), 'AES-GCM', false, ['encrypt'])
+      ciphertext = new Uint8Array(await crypto.subtle.encrypt({
+        name: 'AES-GCM', iv: toArrayBuffer(nonce), additionalData: toArrayBuffer(new TextEncoder().encode('wasp:private-share:v1')),
+      }, key, toArrayBuffer(plaintext)))
+      const token = encodeBase64Url(tokenBytes)
+      const response = await fetch('/api/private-links', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          token, vaultId, resourceId: entry.id,
+          encryptedPayload: { v: 1, alg: 'A256GCM', nonce: encodeBase64Url(nonce), ct: encodeBase64Url(ciphertext) },
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), maxUses: 20,
+        }),
+      })
+      if (!response.ok) throw new Error('Impossible de créer ce lien privé.')
+      const result = await response.json() as { id: string }
+      const url = `${window.location.origin}/share/private/${token}#k=${encodeBase64Url(keyBytes)}`
+      const qr = await QRCode.toDataURL(url, { width: 220, margin: 2, errorCorrectionLevel: 'M' })
+      setCreatedLink({ id: result.id, itemId: entry.id, url, qr })
+    } catch (cause) {
+      setHasError(true)
+      setNotice(cause instanceof Error ? cause.message : 'Impossible de générer le lien privé.')
+    } finally {
+      if (keyBytes) wipeBytes(keyBytes)
+      if (tokenBytes) wipeBytes(tokenBytes)
+      if (nonce) wipeBytes(nonce)
+      if (plaintext) wipeBytes(plaintext)
+      if (ciphertext) wipeBytes(ciphertext)
+      setLinkBusy(false)
+    }
+  }
+
+  async function persistRotation(entry: ItemName, encryptedPayload: EncryptedVaultItem) {
+    const expectedScopeKeyVersion = entry.item.encryptedPayload.scopeKeyVersion ?? 1
+    const response = await fetch(`/api/vault-items/${entry.id}/rotate`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ vaultId, expectedVersion: entry.item.encryptedPayload.version, expectedScopeKeyVersion, encryptedPayload }),
+    })
+    if (!response.ok) throw new Error('La rotation n’a pas abouti. Rechargez les données puis réessayez.')
+  }
+
+  async function shareSecret(entry: ItemName) {
+    const recipientHandle = shareHandle.trim().replace(/^@/, '').toLowerCase()
+    const selectedGroup = groupsData?.groups.find((group) => group.id === shareGroupId)
+    const targets = selectedGroup ? selectedGroup.members.flatMap((member) => member.handle ? [member.handle] : []) : recipientHandle ? [recipientHandle] : []
+    if (!targets.length || shareBusy) { if (selectedGroup) setShareNotice('Ce groupe ne contient aucun membre avec un pseudo partageable.'); return }
+    setShareBusy(true); setShareNotice('')
+    let metadataKeyBytes: Uint8Array | undefined
+    let secretKeyBytes: Uint8Array | undefined
+    let sharePayload: Uint8Array | undefined
+    try {
+      let itemForShare = entry.item.encryptedPayload
+      if (!itemForShare.scopeKeyEnvelope) {
+        const nextScopeVersion = (itemForShare.scopeKeyVersion ?? 1) + 1
+        itemForShare = await rotateVaultItemPayload(vaultId, entry.id, itemForShare, nextScopeVersion)
+        await persistRotation(entry, itemForShare)
+        await onUpdated()
+      }
+      const scopeKeys = await getVaultItemScopeKeys(vaultId, entry.id, itemForShare)
+      metadataKeyBytes = scopeKeys.metadataKey
+      secretKeyBytes = scopeKeys.secretKey
+      sharePayload = new TextEncoder().encode(JSON.stringify({
+        version: 1, resourceType: 'secret', resourceId: entry.id,
+        scopeKeyVersion: itemForShare.scopeKeyVersion ?? 1,
+        metadataKey: encodeBase64Url(metadataKeyBytes), secretKey: encodeBase64Url(secretKeyBytes),
+      }))
+      let sent = 0
+      for (const targetHandle of targets) {
+        let sealedPayload: Uint8Array | undefined
+        try {
+          const keyResponse = await fetch(`/api/users/${encodeURIComponent(targetHandle)}/keys`, { cache: 'no-store' })
+          if (!keyResponse.ok) continue
+          const recipient = await keyResponse.json() as { publicKeyX25519: string }
+          sealedPayload = await sealDataForMember(sharePayload, decodeBase64Url(recipient.publicKeyX25519))
+          const response = await fetch('/api/scoped-shares', {
+            method: 'POST', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              vaultId, resourceId: entry.id, resourceType: 'secret', recipientHandle: targetHandle,
+              groupId: selectedGroup?.id, keyVersion: itemForShare.scopeKeyVersion ?? 1,
+              encryptedScopeKey: { v: 1, alg: 'X25519-SEAL', ct: encodeBase64Url(sealedPayload) },
+              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            }),
+          })
+          if (response.ok) sent += 1
+        } finally { sealedPayload?.fill(0) }
+      }
+      if (!sent) throw new Error('Aucune invitation n’a été créée. Vérifiez les clés des destinataires et les adhésions au groupe.')
+      const audience = selectedGroup ? `aux membres actuels de « ${selectedGroup.name} »` : `à @${recipientHandle}`
+      setShareNotice(`Invitation envoyée ${audience} (${sent}/${targets.length}). Elle expire dans 30 jours et ne donne accès qu’à ce secret.`)
+      setShareHandle(''); setShareGroupId(''); setSharingItemId(null)
+    } catch (cause) { setShareNotice(cause instanceof Error ? cause.message : 'Impossible de partager ce secret.') }
+    finally {
+      metadataKeyBytes?.fill(0); secretKeyBytes?.fill(0); sharePayload?.fill(0)
+      setShareBusy(false)
+    }
+  }
+
+  async function revokePrivateLink() {
+    if (!createdLink) return
+    if (!window.confirm('Révoquer ce lien maintenant ? Les anciennes copies déjà consultées ne peuvent pas être effacées.')) return
+    setLinkBusy(true)
+    try {
+      const response = await fetch(`/api/private-links/${createdLink.id}`, { method: 'DELETE' })
+      if (!response.ok) throw new Error('Impossible de révoquer ce lien.')
+      setCreatedLink(null)
+      setNotice('Lien révoqué. Toute consultation future est bloquée.')
+    } catch (cause) { setNotice(cause instanceof Error ? cause.message : 'La révocation a échoué.') }
+    finally { setLinkBusy(false) }
+  }
+
+  async function migrateLegacyScopeKeys() {
+    const pending = names.filter(({ item }) => !item.encryptedPayload.scopeKeyEnvelope)
+    if (!pending.length || rotationBusy) return
+    if (!window.confirm(`Migrer ${pending.length} élément(s) vers des clés aléatoires indépendantes, rechiffrer leur historique et invalider leurs anciens partages/liens ? La migration s’exécute dans ce navigateur avec le coffre déverrouillé et peut être reprise si elle est interrompue.`)) return
+    setRotationBusy(true); setRotationNotice('')
+    let completed = 0
+    try {
+      for (const entry of pending) {
+        const currentKeyVersion = entry.item.encryptedPayload.scopeKeyVersion ?? 1
+        const encryptedPayload = await rotateVaultItemPayload(vaultId, entry.id, entry.item.encryptedPayload, currentKeyVersion + 1)
+        await persistRotation(entry, encryptedPayload)
+        completed += 1
+        setRotationNotice(`Migration en cours : ${completed}/${pending.length}.`)
+      }
+      setRotationNotice(`${completed} élément(s) migré(s). Les clés sont aléatoires, scellées au coffre et distinctes par objet.`)
+    } catch (cause) {
+      setRotationNotice(`${completed} élément(s) migré(s). La migration peut reprendre après actualisation. ${cause instanceof Error ? cause.message : ''}`)
+    } finally { await onUpdated(); setRotationBusy(false) }
+  }
+
+  async function rotateSecretScope(entry: ItemName) {
+    if (rotationBusy) return
+    const currentKeyVersion = entry.item.encryptedPayload.scopeKeyVersion ?? 1
+    const confirmed = window.confirm('Renouveler la clé de ce secret et rechiffrer tout son historique ? Tous les partages limités et liens privés actifs de ce secret seront révoqués. Les copies déjà consultées ou téléchargées ne peuvent pas être effacées. Remplacez aussi l’identifiant chez son fournisseur si nécessaire.')
+    if (!confirmed) return
+    setRotationBusy(true); setRotationNotice('')
+    try {
+      const encryptedPayload = await rotateVaultItemPayload(vaultId, entry.id, entry.item.encryptedPayload, currentKeyVersion + 1)
+      await persistRotation(entry, encryptedPayload)
+      await onUpdated()
+      setRotationNotice('Clé renouvelée, historique rechiffré et anciens partages/liens révoqués.')
+    } catch (cause) { setRotationNotice(cause instanceof Error ? cause.message : 'Impossible de renouveler cette clé.') }
+    finally { setRotationBusy(false) }
+  }
+
   async function handleExport(item: ItemName) {
     if (!window.confirm('Le fichier téléchargé contiendra vos valeurs en clair. Continuer ?')) return
     try {
@@ -173,17 +362,20 @@ export function VaultItemList({
   }
 
   const filteredNames = names.filter(({ name }) => name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+  const legacyItemCount = names.filter(({ item }) => !item.encryptedPayload.scopeKeyEnvelope).length
 
   if (items.length === 0) return <Text className="wasp-empty-note">Aucun secret pour le moment. Les noms et les valeurs ne quittent jamais votre navigateur en clair.</Text>
 
   return (
     <div className="wasp-secret-list" aria-live="polite">
+      {canWrite && canShare && legacyItemCount > 0 && <div className="wasp-vault-card"><Text>Des éléments utilisent encore le format historique. Migrez-les dans ce navigateur pour créer une clé aléatoire enveloppée séparément par élément, et rechiffrer aussi l’historique.</Text><Button variant="primary" disabled={rotationBusy} onClick={() => void migrateLegacyScopeKeys()}>{rotationBusy ? 'Migration…' : `Isoler les clés restantes (${legacyItemCount})`}</Button></div>}
       <label className="wasp-field">
         <span>Rechercher dans les noms des secrets</span>
         <TextInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nom du secret…" aria-label="Rechercher dans les noms des secrets" autoComplete="off" />
       </label>
       {hasError && <Text role="alert" className="wasp-auth-error">Un élément ne peut pas être déchiffré ou restauré. Vérifiez que le coffre est déverrouillé et réessayez.</Text>}
       {notice && <Text role="status" className="wasp-copy-notice">{notice}</Text>}
+      {rotationNotice && <Text role="status" className="wasp-copy-notice">{rotationNotice}</Text>}
       {filteredNames.length === 0 && <Text className="wasp-empty-note">Aucun secret ne correspond à cette recherche.</Text>}
       {filteredNames.map(({ id, name, kind, item }) => (
         <article className="wasp-secret-row" key={id}>
@@ -215,10 +407,30 @@ export function VaultItemList({
                       {revealed[id] === undefined ? 'Révéler 10 s' : 'Masquer'}
                     </Button>
                     <Button variant="invisible" onClick={() => void handleCopy(item)} aria-label={`Copier ${name}`}>Copier</Button>
+                    {canWrite && canShare && kind === 'secret' && <Button variant="invisible" disabled={shareBusy} onClick={() => { setSharingItemId(sharingItemId === id ? null : id); setShareNotice('') }}>Partager ce secret</Button>}
+                    {canWrite && canShare && kind === 'secret' && <Button variant="invisible" disabled={rotationBusy} onClick={() => void rotateSecretScope({ id, name, kind, item })}>Renouveler la clé</Button>}
+                    <Button variant="invisible" disabled={linkBusy} onClick={() => void handleCreatePrivateLink({ id, name, kind, item })}>Lien privé + QR</Button>
                   </>
                 )}
                 {canWrite && <Button variant="invisible" onClick={() => void handleDelete(id, name)} aria-label={`Supprimer ${name}`}>Supprimer</Button>}
               </div>
+              {sharingItemId === id && canShare && (
+                <div className="wasp-version-history">
+                  <Text size="small">Partage en lecture seule, chiffré pour chaque destinataire, sans transmettre la clé du coffre. L’invitation expire dans 30 jours. Un groupe inclut ses membres actuels; partagez à nouveau après tout changement de membres.</Text>
+                  <label className="wasp-field"><span>Destinataire</span><select value={shareGroupId} onChange={(event) => setShareGroupId(event.target.value)} aria-label="Destinataire du secret"><option value="">Une personne</option>{groupsData?.groups.map((group) => <option key={group.id} value={group.id}>Groupe : {group.name} ({group.members.length})</option>)}</select></label>
+                  {!shareGroupId && <label className="wasp-field"><span>Pseudo de la personne</span><TextInput value={shareHandle} onChange={(event) => setShareHandle(event.target.value)} placeholder="ex. alice" autoComplete="off" maxLength={33} /></label>}
+                  <div className="wasp-inline-action"><Button variant="primary" disabled={shareBusy || (!shareGroupId && !shareHandle.trim())} onClick={() => void shareSecret({ id, name, kind, item })}>{shareBusy ? 'Envoi…' : 'Envoyer l’invitation'}</Button><Button variant="invisible" disabled={shareBusy} onClick={() => setSharingItemId(null)}>Annuler</Button></div>
+                  {shareNotice && <Text role="status">{shareNotice}</Text>}
+                </div>
+              )}
+              {createdLink?.itemId === id && (
+                <div className="wasp-version-history" aria-live="polite">
+                  <Text size="small">Lien en lecture seule · expire dans 7 jours · maximum 20 ouvertures. La clé privée se trouve uniquement dans le fragment de l’URL.</Text>
+                  <Image src={createdLink.qr} alt={`Code QR du lien privé pour ${name}`} width={220} height={220} unoptimized />
+                  <label className="wasp-field"><span>Lien privé (à transmettre uniquement à la personne concernée)</span><TextInput value={createdLink.url} readOnly aria-label={`Lien privé pour ${name}`} /></label>
+                  <div className="wasp-inline-action"><Button onClick={async () => { await navigator.clipboard.writeText(createdLink.url); setNotice('Lien privé copié.') }}>Copier le lien</Button><Button variant="danger" disabled={linkBusy} onClick={() => void revokePrivateLink()}>Révoquer le lien</Button></div>
+                </div>
+              )}
               {canWrite && (item.encryptedPayload.history?.length ?? 0) > 0 && (
                 <div className="wasp-version-history">
                   <Button

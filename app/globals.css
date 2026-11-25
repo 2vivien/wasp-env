@@ -540,6 +540,19 @@ html[data-color-mode='light'] .wasp-vault-card button[data-variant='primary'] {
   gap: 8px;
 }
 
+.wasp-shared-env-file {
+  flex-basis: 100%;
+  max-height: 24rem;
+  overflow: auto;
+  padding: 12px;
+  border: var(--borderWidth-thin) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+  background: var(--bgColor-inset);
+  color: var(--fgColor-default);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .wasp-share-permission {
   display: flex;
   flex-direction: column;

@@ -49,6 +49,7 @@ export function VaultWorkspace({
         <Link className="wasp-wordmark" href="/">Wasp</Link>
         <nav className="wasp-dashboard-nav" aria-label="Navigation principale">
           <Link href="/projects">Projets</Link>
+          <Link href="/groups">Groupes</Link>
           <Link href="/shared">Partagés</Link>
           <Link href="/security">Sécurité</Link>
         </nav>

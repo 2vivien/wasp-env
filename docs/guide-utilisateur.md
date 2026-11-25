@@ -23,14 +23,15 @@ La perte simultanée de la phrase secrète et de la clé de récupération rend 
 
 Créer un projet depuis **Projets**, puis ajouter un ou plusieurs environnements. Le nom de projet et les noms d’environnements sont chiffrés côté navigateur. Ils peuvent être déchiffrés pour consultation, renommés et supprimés depuis la liste des projets. Une suppression est logique et masque aussi les environnements du projet.
 
-## Partage d’un coffre
+## Partages à portée limitée
 
-1. Configurer les clés de partage dans **Sécurité** si cela n’a pas déjà été fait.
-2. Dans le coffre, saisir le pseudo du destinataire et choisir lecture ou lecture-écriture.
-3. Le destinataire accepte l’invitation dans **Partagés**, puis déverrouille sa clé de partage.
-4. Révoquer l’accès dans le coffre si nécessaire.
+1. Configurer les clés de partage dans **Sécurité** pour les personnes destinataires.
+2. Depuis un secret ou un projet, choisir un pseudo ou un groupe. Un partage de secret donne un accès en lecture seule à la valeur actuelle de ce secret. Un partage de projet donne un accès en lecture seule aux noms du projet, à ses environnements et à leurs fichiers `.env` chiffrés (maximum 20 environnements).
+3. Les invitations ciblées expirent après 30 jours. Les membres actuels du groupe reçoivent chacun une enveloppe chiffrée; un nouveau membre doit être invité à nouveau. Le destinataire accepte puis déverrouille ses clés de partage dans **Partagés**.
+4. Les liens privés et leurs codes QR sont disponibles pour un secret. La clé est dans le fragment de l’URL, jamais envoyée au serveur; le lien expire après 7 jours et est limité à 20 ouvertures. L’expéditeur peut le révoquer depuis la liste des secrets ou **Sécurité**.
+5. Révoquer un accès bloque les consultations futures, mais ne peut pas effacer les valeurs déjà vues, copiées ou téléchargées. Après révocation d’un partage de secret, utilisez **Renouveler la clé** et remplacez également l’identifiant chez son fournisseur. Pour un projet, renouvelez manuellement les identifiants de ses fichiers `.env`.
 
-Le partage actuel porte sur un coffre entier. La révocation ne peut pas effacer une valeur déjà vue ou copiée par un autre membre ; régénérer aussi les secrets concernés chez leur fournisseur.
+Le partage coffre préexistant reste distinct et porte sur l’ensemble du coffre. Les partages ciblés ne transmettent pas la clé maîtresse du coffre.
 
 ## Sessions et activité
 
@@ -38,4 +39,4 @@ La page **Sécurité** liste les sessions, permet de révoquer une session ou to
 
 ## Limites actuelles
 
-Cette version ne comprend pas encore les liens privés/QR, les groupes, la recherche globale, les catégories avancées, l’historique/restauration des versions de secrets, la rotation automatique des clés, la corbeille restaurable, la suppression de compte ni l’export de sauvegarde chiffrée. Le détail des fonctions disponibles et les limites de sécurité sont dans le [README](../README.md) et le [modèle de menace](../THREAT_MODEL.md).
+Les clés de partage de projet sont dérivées dans le navigateur; la rotation de projet après révocation n’est pas automatisée. La rotation d’un secret invalide ses anciennes enveloppes et rechiffre son historique, mais une personne ayant déjà vu une valeur ne peut pas être désapprise. Les liens privés ne s’appliquent qu’aux secrets. Il n’y a pas encore de recherche globale, catégories avancées, corbeille restaurable ni suppression de compte vérifiée par audit. Les flux et permissions nécessitent encore une suite d’intégration/IDOR complète, un audit indépendant et un rate limiting distribué. Le détail est dans le [README](../README.md) et le [modèle de menace](../THREAT_MODEL.md).

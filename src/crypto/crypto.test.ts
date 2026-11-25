@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decryptBytes, deriveObjectKey, encryptBytes, importRootKey } from './aead'
+import { decryptBytes, deriveObjectKey, deriveObjectKeyBytes, encryptBytes, importAesKey, importRootKey } from './aead'
 import { decodeBase64Url, encodeBase64Url, wipeBytes } from './encoding'
 import { lockKeyStore, storeKey, withKey } from './key-store'
 import { createArgon2Salt, derivePassphraseKey } from './key-derivation'
@@ -55,6 +55,25 @@ describe('authenticated vault encryption', () => {
     ciphertext[0] ^= 1
 
     await expect(decryptBytes(key, { ...blob, ct: encodeBase64Url(ciphertext) }, context)).rejects.toThrow()
+  })
+
+  it('allows sharing one object key without exposing the root or other objects', async () => {
+    const rootKey = crypto.getRandomValues(new Uint8Array(32))
+    try {
+      const rawObjectKey = await deriveObjectKeyBytes(rootKey, 'secret', context.objectId)
+      const rotatedObjectKey = await deriveObjectKeyBytes(rootKey, 'secret', context.objectId, 2)
+      expect(rotatedObjectKey).not.toEqual(rawObjectKey)
+      wipeBytes(rotatedObjectKey)
+      const imported = await importAesKey(rawObjectKey, ['encrypt', 'decrypt'])
+      const payload = new TextEncoder().encode('single secret')
+      const blob = await encryptBytes(imported, payload, context)
+      const root = await importRootKey(rootKey)
+      const sameDerivedKey = await deriveObjectKey(root, 'secret', context.objectId)
+      const otherObjectKey = await deriveObjectKey(root, 'secret', 'secret_02')
+      await expect(decryptBytes(sameDerivedKey, blob, context)).resolves.toEqual(payload)
+      await expect(decryptBytes(otherObjectKey, blob, context)).rejects.toThrow()
+      wipeBytes(rawObjectKey)
+    } finally { wipeBytes(rootKey) }
   })
 
   it('uses a different derived key for metadata and secret content', async () => {
