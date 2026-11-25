@@ -52,7 +52,7 @@ export function VaultItemList({
   const [hasError, setHasError] = useState(false)
   const [query, setQuery] = useState('')
   const [historyItemId, setHistoryItemId] = useState<string | null>(null)
-  const [createdLink, setCreatedLink] = useState<{ id: string; itemId: string; url: string; qr: string } | null>(null)
+  const [createdLink, setCreatedLink] = useState<{ id: string; itemId: string; url: string; qr: string; hasAccessCode: boolean } | null>(null)
   const [linkBusy, setLinkBusy] = useState(false)
   const [sharingItemId, setSharingItemId] = useState<string | null>(null)
   const [shareHandle, setShareHandle] = useState('')
@@ -184,6 +184,13 @@ export function VaultItemList({
   }
 
   async function handleCreatePrivateLink(entry: ItemName) {
+    const promptedCode = window.prompt('Code d’accès facultatif (12 à 128 caractères). Laissez vide pour un lien sans code.')
+    if (promptedCode === null) return
+    const accessCode = promptedCode.trim()
+    if (accessCode && (accessCode.length < 12 || accessCode.length > 128)) {
+      setNotice('Le code d’accès doit contenir entre 12 et 128 caractères.')
+      return
+    }
     setLinkBusy(true)
     setCreatedLink(null)
     setNotice('')
@@ -209,13 +216,14 @@ export function VaultItemList({
           token, vaultId, resourceId: entry.id,
           encryptedPayload: { v: 1, alg: 'A256GCM', nonce: encodeBase64Url(nonce), ct: encodeBase64Url(ciphertext) },
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), maxUses: 20,
+          ...(accessCode ? { accessCode } : {}),
         }),
       })
       if (!response.ok) throw new Error('Impossible de créer ce lien privé.')
       const result = await response.json() as { id: string }
       const url = `${window.location.origin}/share/private/${token}#k=${encodeBase64Url(keyBytes)}`
       const qr = await QRCode.toDataURL(url, { width: 220, margin: 2, errorCorrectionLevel: 'M' })
-      setCreatedLink({ id: result.id, itemId: entry.id, url, qr })
+      setCreatedLink({ id: result.id, itemId: entry.id, url, qr, hasAccessCode: Boolean(accessCode) })
     } catch (cause) {
       setHasError(true)
       setNotice(cause instanceof Error ? cause.message : 'Impossible de générer le lien privé.')
@@ -425,7 +433,7 @@ export function VaultItemList({
               )}
               {createdLink?.itemId === id && (
                 <div className="wasp-version-history" aria-live="polite">
-                  <Text size="small">Lien en lecture seule · expire dans 7 jours · maximum 20 ouvertures. La clé privée se trouve uniquement dans le fragment de l’URL.</Text>
+                  <Text size="small">Lien en lecture seule · expire dans 7 jours · maximum 20 ouvertures · {createdLink.hasAccessCode ? 'code d’accès activé (partagez-le séparément du lien)' : 'sans code d’accès'}. La clé privée se trouve uniquement dans le fragment de l’URL.</Text>
                   <Image src={createdLink.qr} alt={`Code QR du lien privé pour ${name}`} width={220} height={220} unoptimized />
                   <label className="wasp-field"><span>Lien privé (à transmettre uniquement à la personne concernée)</span><TextInput value={createdLink.url} readOnly aria-label={`Lien privé pour ${name}`} /></label>
                   <div className="wasp-inline-action"><Button onClick={async () => { await navigator.clipboard.writeText(createdLink.url); setNotice('Lien privé copié.') }}>Copier le lien</Button><Button variant="danger" disabled={linkBusy} onClick={() => void revokePrivateLink()}>Révoquer le lien</Button></div>

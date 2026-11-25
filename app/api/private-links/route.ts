@@ -5,6 +5,7 @@ import { hasValidMutationHeaders, jsonNoStore } from '@/lib/api'
 import { getCurrentSession } from '@/lib/auth/session'
 import { db } from '@/lib/db'
 import { auditLogs, privateShareLinks, vaultItems } from '@/lib/db/schema'
+import { hashPrivateLinkAccessCode } from '@/lib/private-link-security'
 
 const encryptedPayloadSchema = z.object({ v: z.literal(1), alg: z.literal('A256GCM'), nonce: z.string().regex(/^[A-Za-z0-9_-]{16}$/), ct: z.string().min(22).max(200_000) }).strict()
 const createSchema = z.object({
@@ -14,6 +15,7 @@ const createSchema = z.object({
   encryptedPayload: encryptedPayloadSchema,
   expiresAt: z.string().datetime({ offset: true }),
   maxUses: z.number().int().min(1).max(1000),
+  accessCode: z.string().min(12).max(128).optional(),
 }).strict()
 
 export async function GET() {
@@ -39,8 +41,9 @@ export async function POST(request: Request) {
   } catch { return jsonNoStore({ error: { code: 'VALIDATION' } }, 422) }
   const parsed = createSchema.safeParse(body)
   if (!parsed.success) return jsonNoStore({ error: { code: 'VALIDATION' } }, 422)
-  const { token, vaultId, resourceId, encryptedPayload, expiresAt, maxUses } = parsed.data
+  const { token, vaultId, resourceId, encryptedPayload, expiresAt, maxUses, accessCode } = parsed.data
   const expires = new Date(expiresAt)
+  const accessCodeHash = accessCode ? await hashPrivateLinkAccessCode(accessCode) : null
   if (expires <= new Date() || expires > new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)) return jsonNoStore({ error: { code: 'INVALID_EXPIRATION' } }, 422)
   const [item] = await db.select({ id: vaultItems.id }).from(vaultItems).where(and(
     eq(vaultItems.id, resourceId), eq(vaultItems.vaultId, vaultId), eq(vaultItems.userId, session.user.id),
@@ -52,7 +55,7 @@ export async function POST(request: Request) {
   await db.transaction(async (tx) => {
     await tx.insert(privateShareLinks).values({
       id, tokenHash, ownerId: session.user.id, vaultId, resourceType: 'secret', resourceId,
-      encryptedPayload, permissions: { read: true }, expiresAt: expires, maxUses,
+      encryptedPayload, permissions: { read: true }, accessCodeHash, expiresAt: expires, maxUses,
     })
     await tx.insert(auditLogs).values({ id: crypto.randomUUID(), actorId: session.user.id, vaultId, event: 'private_share_link_created', targetKind: 'private_link', targetId: id })
   })
