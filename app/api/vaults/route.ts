@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { jsonNoStore, hasValidMutationHeaders } from '@/lib/api'
 import { getCurrentSession } from '@/lib/auth/session'
 import { db } from '@/lib/db'
-import { user, vaults } from '@/lib/db/schema'
+import { profiles, user, vaults } from '@/lib/db/schema'
 
 const envelopeSchema = z.object({
   v: z.literal(1),
@@ -42,14 +42,18 @@ export async function POST(request: Request) {
   const parsed = createVaultSchema.safeParse(body)
   if (!parsed.success) return jsonNoStore({ error: { code: 'VALIDATION' } }, 422)
 
-  const created = await db.transaction(async (transaction) => {
+  const result = await db.transaction(async (transaction) => {
     const owner = await transaction.select({ id: user.id }).from(user)
       .where(eq(user.id, session.user.id)).for('update').limit(1)
-    if (owner.length === 0) return false
+    if (owner.length === 0) return 'OWNER_NOT_FOUND'
+
+    const [profile] = await transaction.select({ handle: profiles.handle }).from(profiles)
+      .where(eq(profiles.userId, session.user.id)).for('update').limit(1)
+    if (!profile?.handle) return 'PROFILE_REQUIRED'
 
     const existing = await transaction.select({ id: vaults.id }).from(vaults)
       .where(eq(vaults.userId, session.user.id)).limit(1)
-    if (existing.length > 0) return false
+    if (existing.length > 0) return 'VAULT_EXISTS'
 
     await transaction.insert(vaults).values({
       id: parsed.data.id,
@@ -58,9 +62,14 @@ export async function POST(request: Request) {
       wrappedKey: parsed.data.wrappedKey,
       kdfParameters: parsed.data.kdfParameters,
     })
-    return true
+    await transaction.update(profiles).set({ onboardingStep: 'done', updatedAt: new Date() })
+      .where(eq(profiles.userId, session.user.id))
+    return 'CREATED'
   })
 
-  if (!created) return jsonNoStore({ error: { code: 'VAULT_EXISTS' } }, 409)
+  if (result !== 'CREATED') {
+    const status = result === 'PROFILE_REQUIRED' ? 409 : result === 'OWNER_NOT_FOUND' ? 404 : 409
+    return jsonNoStore({ error: { code: result } }, status)
+  }
   return jsonNoStore({ id: parsed.data.id }, 201)
 }

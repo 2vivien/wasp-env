@@ -1,4 +1,4 @@
-import { boolean, index, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { boolean, index, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 import type { WrappedVaultKey, KdfParameters, EncryptedVaultItem } from '@/src/crypto/vault-key'
 
 const createdAt = () => timestamp('createdAt', { withTimezone: true }).notNull().defaultNow()
@@ -49,6 +49,21 @@ export const verification = pgTable('verification', {
   createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
 })
+
+export type OnboardingStep = 'handle' | 'passphrase' | 'recovery' | 'done'
+
+export const profiles = pgTable('profiles', {
+  userId: text('userId').primaryKey().references(() => user.id, { onDelete: 'cascade' }),
+  handle: text('handle'),
+  handleNormalized: text('handleNormalized'),
+  displayName: text('displayName'),
+  avatarUrl: text('avatarUrl'),
+  bio: text('bio'),
+  handleChangedAt: timestamp('handleChangedAt', { withTimezone: true }),
+  onboardingStep: text('onboardingStep').$type<OnboardingStep>().notNull().default('handle'),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (table) => [uniqueIndex('profiles_handle_unique').on(table.handleNormalized)])
 
 export const vaults = pgTable('vaults', {
   id: text('id').primaryKey(),
