@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { Providers } from '@/components/providers'
 
@@ -14,6 +14,12 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'fr_FR',
   },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#161b22',
 }
 
 export default function RootLayout({

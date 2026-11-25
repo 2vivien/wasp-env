@@ -4,6 +4,9 @@ export { decodeBase64Url, encodeBase64Url, randomBytes, wipeBytes } from './enco
 export { lockKeyStore, removeKey, storeKey, withKey } from './key-store'
 export { createArgon2Salt, DEFAULT_ARGON2_PARAMETERS, derivePassphraseKey } from './key-derivation'
 export type { Argon2Parameters } from './key-derivation'
+export { createPendingVaultKey, rewrapVaultPassphrase, unlockVaultKey, recoverVaultKey, recoveryGroups } from './vault-key'
+export { decryptVaultItemName, decryptVaultItemValue, encryptVaultItemPayload } from './vault-items'
+export type { EncryptedVaultItem, KdfParameters, KeyEnvelope, PendingVaultKey, WrappedVaultKey } from './vault-key'
 export {
   createAccountKey,
   createIdentityKeyPairs,

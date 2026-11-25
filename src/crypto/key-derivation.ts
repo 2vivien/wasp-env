@@ -36,7 +36,7 @@ export async function derivePassphraseKey(
   parameters: Argon2Parameters = DEFAULT_ARGON2_PARAMETERS,
 ): Promise<Uint8Array> {
   await sodium.ready
-  const passwordBytes = new TextEncoder().encode(passphrase.normalize('NFC'))
+  const passwordBytes = new TextEncoder().encode(passphrase.normalize('NFKC'))
   if (passwordBytes.length < 1 || passwordBytes.length > PASSPHRASE_MAX_BYTES) {
     passwordBytes.fill(0)
     throw new RangeError('Passphrase length is outside the supported range.')

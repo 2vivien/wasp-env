@@ -37,3 +37,10 @@ export function lockKeyStore(): void {
   for (const key of keys.values()) wipeBytes(key)
   keys.clear()
 }
+
+export function broadcastVaultLock(): void {
+  if (typeof BroadcastChannel === 'undefined') return
+  const channel = new BroadcastChannel('wasp-vault-lock')
+  channel.postMessage('lock')
+  channel.close()
+}
