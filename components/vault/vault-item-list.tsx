@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Button, Text } from '@primer/react'
-import { decryptVaultItemMetadata, decryptVaultItemValue } from '@/src/crypto/vault-items'
+import { Button, Text, TextInput } from '@primer/react'
+import { decryptVaultItemMetadata, decryptVaultItemValue, encryptVaultItemPayload } from '@/src/crypto/vault-items'
 import type { EncryptedVaultItem } from '@/src/crypto/vault-key'
 import type { VaultItemKind } from '@/src/crypto/vault-items'
 import { VaultItemEditor } from './vault-item-editor'
@@ -29,6 +29,8 @@ export function VaultItemList({
   const [revealed, setRevealed] = useState<Record<string, string>>({})
   const [notice, setNotice] = useState('')
   const [hasError, setHasError] = useState(false)
+  const [query, setQuery] = useState('')
+  const [historyItemId, setHistoryItemId] = useState<string | null>(null)
   const timers = useRef(new Map<string, number>())
   const signature = items.map((item) => `${item.id}:${item.encryptedPayload.version}`).join('|')
   const names = nameResult?.signature === signature ? nameResult.items : []
@@ -95,6 +97,35 @@ export function VaultItemList({
     setEditing(null)
   }
 
+  async function handleRestore(entry: ItemName, revision: NonNullable<EncryptedVaultItem['history']>[number]) {
+    if (!window.confirm(`Restaurer la version ${revision.version} de « ${entry.name} » ? La version actuelle sera conservée dans l’historique.`)) return
+    try {
+      const previous = { version: revision.version, metadata: revision.metadata, value: revision.value }
+      const [metadata, value] = await Promise.all([
+        decryptVaultItemMetadata(vaultId, entry.id, previous),
+        decryptVaultItemValue(vaultId, entry.id, previous, entry.kind),
+      ])
+      const nextVersion = entry.item.encryptedPayload.version + 1
+      const payload = await encryptVaultItemPayload(vaultId, entry.id, nextVersion, metadata.name, value, metadata.kind)
+      const response = await fetch(`/api/vault-items/${entry.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vaultId,
+          expectedVersion: entry.item.encryptedPayload.version,
+          nextVersion,
+          metadata: payload.metadata,
+          value: payload.value,
+        }),
+      })
+      if (!response.ok) throw new Error('Unable to restore revision.')
+      await onUpdated()
+      setHistoryItemId(null)
+    } catch {
+      setHasError(true)
+    }
+  }
+
   async function handleDelete(itemId: string, name: string) {
     if (!window.confirm(`Supprimer « ${name} » définitivement ?`)) return
     try {
@@ -141,13 +172,20 @@ export function VaultItemList({
     }
   }
 
+  const filteredNames = names.filter(({ name }) => name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+
   if (items.length === 0) return <Text className="wasp-empty-note">Aucun secret pour le moment. Les noms et les valeurs ne quittent jamais votre navigateur en clair.</Text>
 
   return (
     <div className="wasp-secret-list" aria-live="polite">
-      {hasError && <Text role="alert" className="wasp-auth-error">Un élément ne peut pas être déchiffré. Vérifiez que le coffre est déverrouillé.</Text>}
+      <label className="wasp-field">
+        <span>Rechercher dans les noms des secrets</span>
+        <TextInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nom du secret…" aria-label="Rechercher dans les noms des secrets" autoComplete="off" />
+      </label>
+      {hasError && <Text role="alert" className="wasp-auth-error">Un élément ne peut pas être déchiffré ou restauré. Vérifiez que le coffre est déverrouillé et réessayez.</Text>}
       {notice && <Text role="status" className="wasp-copy-notice">{notice}</Text>}
-      {names.map(({ id, name, kind, item }) => (
+      {filteredNames.length === 0 && <Text className="wasp-empty-note">Aucun secret ne correspond à cette recherche.</Text>}
+      {filteredNames.map(({ id, name, kind, item }) => (
         <article className="wasp-secret-row" key={id}>
           {editing?.id === id ? (
             <VaultItemEditor
@@ -181,6 +219,29 @@ export function VaultItemList({
                 )}
                 {canWrite && <Button variant="invisible" onClick={() => void handleDelete(id, name)} aria-label={`Supprimer ${name}`}>Supprimer</Button>}
               </div>
+              {canWrite && (item.encryptedPayload.history?.length ?? 0) > 0 && (
+                <div className="wasp-version-history">
+                  <Button
+                    variant="invisible"
+                    aria-expanded={historyItemId === id}
+                    onClick={() => setHistoryItemId(historyItemId === id ? null : id)}
+                  >
+                    Versions précédentes ({item.encryptedPayload.history?.length})
+                  </Button>
+                  {historyItemId === id && (
+                    <ul aria-label={`Versions précédentes de ${name}`}>
+                      {[...(item.encryptedPayload.history ?? [])].reverse().map((revision) => (
+                        <li key={`${id}-${revision.version}`}>
+                          <Text size="small">Version {revision.version} · {new Date(revision.createdAt).toLocaleString('fr-FR')}</Text>
+                          <Button variant="default" onClick={() => void handleRestore({ id, name, kind, item }, revision)}>
+                            Restaurer
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
             </>
           )}
         </article>

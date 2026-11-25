@@ -13,5 +13,5 @@ export default async function SecurityPage() {
   if (!session?.user) redirect('/login?callbackURL=%2Fsecurity')
   const [profile] = await db.select({ handle: profiles.handle }).from(profiles).where(eq(profiles.userId, session.user.id)).limit(1)
   if (!profile?.handle) redirect('/onboarding')
-  return <SecurityWorkspace />
+  return <SecurityWorkspace userEmail={session.user.email} />
 }
