@@ -39,6 +39,9 @@ export async function PUT(request: Request, { params }: RouteContext) {
     return jsonNoStore({ error: { code: 'VALIDATION' } }, 422)
   }
 
+  const bodySize = new TextEncoder().encode(JSON.stringify(body) ?? '').byteLength
+  if (bodySize > 1_048_576) return jsonNoStore({ error: { code: 'PAYLOAD_TOO_LARGE' } }, 413)
+
   const parsed = updateItemSchema.safeParse(body)
   if (!parsed.success) return jsonNoStore({ error: { code: 'VALIDATION' } }, 422)
 

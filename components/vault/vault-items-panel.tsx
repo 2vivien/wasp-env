@@ -3,6 +3,7 @@
 import useSWR from 'swr'
 import { Button, Heading, Text } from '@primer/react'
 import { useIdleVaultLock } from './use-idle-vault-lock'
+import { VaultEnvImportForm } from './vault-env-import-form'
 import { VaultItemForm } from './vault-item-form'
 import { VaultItemList } from './vault-item-list'
 import type { EncryptedVaultItem } from '@/src/crypto/vault-key'
@@ -41,6 +42,7 @@ export function VaultItemsPanel({ vaultId, onLock }: { vaultId: string; onLock: 
         <Button variant="default" onClick={lockVault}>Verrouiller</Button>
       </div>
       <Text size="small">Seuls les blocs chiffrés sont envoyés au serveur. Les clés restent en mémoire dans cet onglet.</Text>
+      <VaultEnvImportForm vaultId={vaultId} onSaved={() => void mutate()} />
       <VaultItemForm vaultId={vaultId} onSaved={() => void mutate()} />
       {isLoading && <Text role="status">Chargement des éléments chiffrés…</Text>}
       {error && <Text role="alert" className="wasp-auth-error">Impossible de charger le coffre. Réessayez.</Text>}

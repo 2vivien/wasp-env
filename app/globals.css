@@ -494,6 +494,29 @@ html[data-color-mode='light'] .wasp-vault-card button[data-variant='primary'] {
   grid-column: 1 / -1;
 }
 
+.wasp-env-import {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 0;
+  border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
+}
+
+.wasp-env-import h3 {
+  margin: 6px 0;
+  font-size: var(--text-title-size-small);
+}
+
+.wasp-env-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 16px;
+  border: var(--borderWidth-thin) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+}
+
 .wasp-secret-list {
   display: flex;
   flex-direction: column;

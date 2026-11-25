@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Button, Text } from '@primer/react'
-import { decryptVaultItemName, decryptVaultItemValue } from '@/src/crypto/vault-items'
+import { decryptVaultItemMetadata, decryptVaultItemValue } from '@/src/crypto/vault-items'
 import type { EncryptedVaultItem } from '@/src/crypto/vault-key'
+import type { VaultItemKind } from '@/src/crypto/vault-items'
 import { VaultItemEditor } from './vault-item-editor'
 
 type Item = { id: string; encryptedPayload: EncryptedVaultItem }
-type ItemName = { id: string; name: string; item: Item }
+type ItemName = { id: string; name: string; kind: VaultItemKind; item: Item }
 type EditingItem = ItemName & { value: string }
 
 export function VaultItemList({
@@ -33,7 +34,11 @@ export function VaultItemList({
   useEffect(() => {
     let active = true
     const timerMap = timers.current
-    void Promise.all(items.map(async (item) => ({ id: item.id, name: await decryptVaultItemName(vaultId, item.id, item.encryptedPayload), item })))
+    void Promise.all(items.map(async (item) => ({
+      id: item.id,
+      ...await decryptVaultItemMetadata(vaultId, item.id, item.encryptedPayload),
+      item,
+    })))
       .then((decrypted) => { if (active) setNameResult({ signature, items: decrypted }) })
       .catch(() => { if (active) setHasError(true) })
 
@@ -115,13 +120,32 @@ export function VaultItemList({
     }
   }
 
+  async function handleExport(item: ItemName) {
+    if (!window.confirm('Le fichier téléchargé contiendra vos valeurs en clair. Continuer ?')) return
+    try {
+      const source = await decryptVaultItemValue(vaultId, item.id, item.item.encryptedPayload, 'env-file')
+      const filename = /^\.env(?:\.[A-Za-z0-9._-]+)?$/.test(item.name) ? item.name : '.env.local'
+      const file = new Blob([source], { type: 'text/plain;charset=utf-8' })
+      const url = URL.createObjectURL(file)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = filename
+      document.body.append(anchor)
+      anchor.click()
+      anchor.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch {
+      setHasError(true)
+    }
+  }
+
   if (items.length === 0) return <Text className="wasp-empty-note">Aucun secret pour le moment. Les noms et les valeurs ne quittent jamais votre navigateur en clair.</Text>
 
   return (
     <div className="wasp-secret-list" aria-live="polite">
       {hasError && <Text role="alert" className="wasp-auth-error">Un élément ne peut pas être déchiffré. Vérifiez que le coffre est déverrouillé.</Text>}
       {notice && <Text role="status" className="wasp-copy-notice">{notice}</Text>}
-      {names.map(({ id, name, item }) => (
+      {names.map(({ id, name, kind, item }) => (
         <article className="wasp-secret-row" key={id}>
           {editing?.id === id ? (
             <VaultItemEditor
@@ -136,15 +160,23 @@ export function VaultItemList({
             <>
               <div className="wasp-secret-row-copy">
                 <strong>{name}</strong>
-                <Text size="small">Version {item.encryptedPayload.version}</Text>
-                <code>{revealed[id] ?? '••••••••'}</code>
+                <Text size="small">{kind === 'env-file' ? 'Fichier chiffré' : `Version ${item.encryptedPayload.version}`}</Text>
+                {kind === 'secret' && <code>{revealed[id] ?? '••••••••'}</code>}
               </div>
               <div className="wasp-secret-actions">
-                <Button variant="invisible" onClick={() => void handleEdit({ id, name, item })} aria-label={`Modifier ${name}`}>Modifier</Button>
-                <Button variant="invisible" onClick={() => void handleReveal(item)} aria-label={`Révéler ${name}`}>
-                  {revealed[id] === undefined ? 'Révéler 10 s' : 'Masquer'}
-                </Button>
-                <Button variant="invisible" onClick={() => void handleCopy(item)} aria-label={`Copier ${name}`}>Copier</Button>
+                {kind === 'env-file' ? (
+                  <Button variant="invisible" onClick={() => void handleExport({ id, name, kind, item })} aria-label={`Exporter ${name}`}>
+                    Exporter .env
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="invisible" onClick={() => void handleEdit({ id, name, kind, item })} aria-label={`Modifier ${name}`}>Modifier</Button>
+                    <Button variant="invisible" onClick={() => void handleReveal(item)} aria-label={`Révéler ${name}`}>
+                      {revealed[id] === undefined ? 'Révéler 10 s' : 'Masquer'}
+                    </Button>
+                    <Button variant="invisible" onClick={() => void handleCopy(item)} aria-label={`Copier ${name}`}>Copier</Button>
+                  </>
+                )}
                 <Button variant="invisible" onClick={() => void handleDelete(id, name)} aria-label={`Supprimer ${name}`}>Supprimer</Button>
               </div>
             </>

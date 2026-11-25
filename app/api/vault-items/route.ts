@@ -9,7 +9,7 @@ const encryptedBlobSchema = z.object({
   v: z.literal(1),
   alg: z.literal('A256GCM'),
   nonce: z.string().min(16).max(32),
-  ct: z.string().min(24).max(100_000),
+  ct: z.string().min(24).max(850_000),
 }).strict()
 
 const encryptedItemSchema = z.object({
@@ -60,6 +60,9 @@ export async function POST(request: Request) {
   } catch {
     return jsonNoStore({ error: { code: 'VALIDATION' } }, 422)
   }
+
+  const bodySize = new TextEncoder().encode(JSON.stringify(body) ?? '').byteLength
+  if (bodySize > 1_048_576) return jsonNoStore({ error: { code: 'PAYLOAD_TOO_LARGE' } }, 413)
 
   const parsed = createItemSchema.safeParse(body)
   if (!parsed.success) return jsonNoStore({ error: { code: 'VALIDATION' } }, 422)
