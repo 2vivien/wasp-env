@@ -6,6 +6,7 @@ import { useIdleVaultLock } from './use-idle-vault-lock'
 import { VaultEnvImportForm } from './vault-env-import-form'
 import { VaultItemForm } from './vault-item-form'
 import { VaultItemList } from './vault-item-list'
+import { VaultSharePanel } from './vault-share-panel'
 import type { EncryptedVaultItem } from '@/src/crypto/vault-key'
 
 type Item = { id: string; encryptedPayload: EncryptedVaultItem; createdAt: string }
@@ -17,7 +18,7 @@ async function fetchItems(url: string): Promise<ItemResponse> {
   return response.json() as Promise<ItemResponse>
 }
 
-export function VaultItemsPanel({ vaultId, onLock }: { vaultId: string; onLock: () => void }) {
+export function VaultItemsPanel({ vaultId, onLock, canWrite = true, allowShare = true }: { vaultId: string; onLock: () => void; canWrite?: boolean; allowShare?: boolean }) {
   const key = `/api/vault-items?vaultId=${encodeURIComponent(vaultId)}`
   const { data, error, isLoading, mutate } = useSWR<ItemResponse>(key, fetchItems, { revalidateOnFocus: false })
   const lockVault = useIdleVaultLock(onLock)
@@ -42,11 +43,13 @@ export function VaultItemsPanel({ vaultId, onLock }: { vaultId: string; onLock: 
         <Button variant="default" onClick={lockVault}>Verrouiller</Button>
       </div>
       <Text size="small">Seuls les blocs chiffrés sont envoyés au serveur. Les clés restent en mémoire dans cet onglet.</Text>
-      <VaultEnvImportForm vaultId={vaultId} onSaved={() => void mutate()} />
-      <VaultItemForm vaultId={vaultId} onSaved={() => void mutate()} />
+      {canWrite && <VaultEnvImportForm vaultId={vaultId} onSaved={() => void mutate()} />}
+      {canWrite && <VaultItemForm vaultId={vaultId} onSaved={() => void mutate()} />}
       {isLoading && <Text role="status">Chargement des éléments chiffrés…</Text>}
       {error && <Text role="alert" className="wasp-auth-error">Impossible de charger le coffre. Réessayez.</Text>}
-      {data && <VaultItemList vaultId={vaultId} items={data.items} onDelete={deleteItem} onUpdated={refreshItems} />}
+      {data && <VaultItemList vaultId={vaultId} items={data.items} onDelete={deleteItem} onUpdated={refreshItems} canWrite={canWrite} />}
+      {allowShare && <VaultSharePanel vaultId={vaultId} />}
+      {!canWrite && <Text size="small">Accès en lecture seule.</Text>}
     </section>
   )
 }

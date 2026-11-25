@@ -47,6 +47,11 @@ export function VaultWorkspace({
     <main className="wasp-dashboard">
       <header className="wasp-dashboard-header">
         <Link className="wasp-wordmark" href="/">Wasp</Link>
+        <nav className="wasp-dashboard-nav" aria-label="Navigation principale">
+          <Link href="/projects">Projets</Link>
+          <Link href="/shared">Partagés</Link>
+          <Link href="/security">Sécurité</Link>
+        </nav>
         <div className="wasp-dashboard-account">
           <Text size="small">{userName}</Text>
           <Button variant="default" onClick={handleSignOut}>Se déconnecter</Button>

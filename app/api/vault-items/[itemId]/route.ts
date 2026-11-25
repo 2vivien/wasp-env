@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { jsonNoStore, hasValidMutationHeaders } from '@/lib/api'
 import { getCurrentSession } from '@/lib/auth/session'
 import { db } from '@/lib/db'
-import { vaultItems } from '@/lib/db/schema'
+import { auditLogs, vaultItems } from '@/lib/db/schema'
+import { getVaultAccess } from '@/lib/vault-access'
 
 const encryptedBlobSchema = z.object({
   v: z.literal(1),
@@ -45,11 +46,14 @@ export async function PUT(request: Request, { params }: RouteContext) {
   const parsed = updateItemSchema.safeParse(body)
   if (!parsed.success) return jsonNoStore({ error: { code: 'VALIDATION' } }, 422)
 
+  const access = await getVaultAccess(session.user.id, parsed.data.vaultId)
+  if (!access) return jsonNoStore({ error: { code: 'NOT_FOUND' } }, 404)
+  if (access.permission !== 'write') return jsonNoStore({ error: { code: 'FORBIDDEN' } }, 403)
   const rows = await db.select({ encryptedPayload: vaultItems.encryptedPayload, updatedAt: vaultItems.updatedAt })
     .from(vaultItems).where(and(
       eq(vaultItems.id, itemId),
       eq(vaultItems.vaultId, parsed.data.vaultId),
-      eq(vaultItems.userId, session.user.id),
+      eq(vaultItems.userId, access.ownerId),
     )).limit(1)
   const current = rows[0]
   if (!current) return jsonNoStore({ error: { code: 'NOT_FOUND' } }, 404)
@@ -67,20 +71,24 @@ export async function PUT(request: Request, { params }: RouteContext) {
     },
   ].slice(-49)
 
-  const updated = await db.update(vaultItems).set({
-    encryptedPayload: {
-      version: parsed.data.nextVersion,
-      metadata: parsed.data.metadata,
-      value: parsed.data.value,
-      history,
-    },
-    updatedAt: new Date(),
-  }).where(and(
-    eq(vaultItems.id, itemId),
-    eq(vaultItems.vaultId, parsed.data.vaultId),
-    eq(vaultItems.userId, session.user.id),
-    sql`${vaultItems.encryptedPayload}->>'version' = ${String(parsed.data.expectedVersion)}`,
-  )).returning({ id: vaultItems.id })
+  const updated = await db.transaction(async (tx) => {
+    const rows = await tx.update(vaultItems).set({
+      encryptedPayload: {
+        version: parsed.data.nextVersion,
+        metadata: parsed.data.metadata,
+        value: parsed.data.value,
+        history,
+      },
+      updatedAt: new Date(),
+    }).where(and(
+      eq(vaultItems.id, itemId),
+      eq(vaultItems.vaultId, parsed.data.vaultId),
+      eq(vaultItems.userId, access.ownerId),
+      sql`${vaultItems.encryptedPayload}->>'version' = ${String(parsed.data.expectedVersion)}`,
+    )).returning({ id: vaultItems.id })
+    if (rows.length) await tx.insert(auditLogs).values({ id: crypto.randomUUID(), actorId: session.user.id, vaultId: parsed.data.vaultId, event: 'vault_item_updated', targetKind: 'vault_item', targetId: itemId })
+    return rows
+  })
 
   if (updated.length === 0) return jsonNoStore({ error: { code: 'CONFLICT' } }, 409)
   return jsonNoStore({ id: itemId, version: parsed.data.nextVersion })
@@ -96,10 +104,21 @@ export async function DELETE(request: Request, { params }: RouteContext) {
     return jsonNoStore({ error: { code: 'VALIDATION' } }, 422)
   }
 
-  const deleted = await db.delete(vaultItems).where(and(
-    eq(vaultItems.id, itemId),
-    eq(vaultItems.userId, session.user.id),
-  )).returning({ id: vaultItems.id })
+  const [item] = await db.select({ vaultId: vaultItems.vaultId }).from(vaultItems)
+    .where(eq(vaultItems.id, itemId)).limit(1)
+  if (!item) return jsonNoStore({ error: { code: 'NOT_FOUND' } }, 404)
+  const access = await getVaultAccess(session.user.id, item.vaultId)
+  if (!access) return jsonNoStore({ error: { code: 'NOT_FOUND' } }, 404)
+  if (access.permission !== 'write') return jsonNoStore({ error: { code: 'FORBIDDEN' } }, 403)
+  const deleted = await db.transaction(async (tx) => {
+    const rows = await tx.delete(vaultItems).where(and(
+      eq(vaultItems.id, itemId),
+      eq(vaultItems.vaultId, item.vaultId),
+      eq(vaultItems.userId, access.ownerId),
+    )).returning({ id: vaultItems.id })
+    if (rows.length) await tx.insert(auditLogs).values({ id: crypto.randomUUID(), actorId: session.user.id, vaultId: item.vaultId, event: 'vault_item_deleted', targetKind: 'vault_item', targetId: itemId })
+    return rows
+  })
 
   if (deleted.length === 0) return jsonNoStore({ error: { code: 'NOT_FOUND' } }, 404)
   return jsonNoStore({ deleted: true })

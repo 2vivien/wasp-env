@@ -1,9 +1,10 @@
-import { and, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { jsonNoStore, hasValidMutationHeaders } from '@/lib/api'
 import { getCurrentSession } from '@/lib/auth/session'
 import { db } from '@/lib/db'
-import { vaultItems, vaults } from '@/lib/db/schema'
+import { auditLogs, vaultItems } from '@/lib/db/schema'
+import { getVaultAccess } from '@/lib/vault-access'
 
 const encryptedBlobSchema = z.object({
   v: z.literal(1),
@@ -33,18 +34,14 @@ export async function GET(request: Request) {
     return jsonNoStore({ error: { code: 'VALIDATION' } }, 422)
   }
 
-  const ownedVault = await db.select({ id: vaults.id }).from(vaults)
-    .where(and(eq(vaults.id, vaultId), eq(vaults.userId, session.user.id))).limit(1)
-  if (ownedVault.length === 0) return jsonNoStore({ error: { code: 'NOT_FOUND' } }, 404)
+  const access = await getVaultAccess(session.user.id, vaultId)
+  if (!access) return jsonNoStore({ error: { code: 'NOT_FOUND' } }, 404)
 
   const items = await db.select({
     id: vaultItems.id,
     encryptedPayload: vaultItems.encryptedPayload,
     createdAt: vaultItems.createdAt,
-  }).from(vaultItems).where(and(
-    eq(vaultItems.vaultId, vaultId),
-    eq(vaultItems.userId, session.user.id),
-  )).orderBy(vaultItems.createdAt)
+  }).from(vaultItems).where(eq(vaultItems.vaultId, vaultId)).orderBy(vaultItems.createdAt)
 
   return jsonNoStore({ items })
 }
@@ -67,15 +64,18 @@ export async function POST(request: Request) {
   const parsed = createItemSchema.safeParse(body)
   if (!parsed.success) return jsonNoStore({ error: { code: 'VALIDATION' } }, 422)
 
-  const ownedVault = await db.select({ id: vaults.id }).from(vaults)
-    .where(and(eq(vaults.id, parsed.data.vaultId), eq(vaults.userId, session.user.id))).limit(1)
-  if (ownedVault.length === 0) return jsonNoStore({ error: { code: 'NOT_FOUND' } }, 404)
+  const access = await getVaultAccess(session.user.id, parsed.data.vaultId)
+  if (!access) return jsonNoStore({ error: { code: 'NOT_FOUND' } }, 404)
+  if (access.permission !== 'write') return jsonNoStore({ error: { code: 'FORBIDDEN' } }, 403)
 
-  await db.insert(vaultItems).values({
-    id: parsed.data.id,
-    vaultId: parsed.data.vaultId,
-    userId: session.user.id,
-    encryptedPayload: parsed.data.encryptedPayload,
+  await db.transaction(async (tx) => {
+    await tx.insert(vaultItems).values({
+      id: parsed.data.id,
+      vaultId: parsed.data.vaultId,
+      userId: access.ownerId,
+      encryptedPayload: parsed.data.encryptedPayload,
+    })
+    await tx.insert(auditLogs).values({ id: crypto.randomUUID(), actorId: session.user.id, vaultId: parsed.data.vaultId, event: 'vault_item_created', targetKind: 'vault_item', targetId: parsed.data.id })
   })
 
   return jsonNoStore({ id: parsed.data.id }, 201)

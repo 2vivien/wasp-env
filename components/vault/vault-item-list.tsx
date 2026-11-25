@@ -16,11 +16,13 @@ export function VaultItemList({
   items,
   onDelete,
   onUpdated,
+  canWrite = true,
 }: {
   vaultId: string
   items: Item[]
   onDelete: (id: string) => Promise<void>
   onUpdated: () => Promise<void>
+  canWrite?: boolean
 }) {
   const [nameResult, setNameResult] = useState<{ signature: string; items: ItemName[] } | null>(null)
   const [editing, setEditing] = useState<EditingItem | null>(null)
@@ -170,14 +172,14 @@ export function VaultItemList({
                   </Button>
                 ) : (
                   <>
-                    <Button variant="invisible" onClick={() => void handleEdit({ id, name, kind, item })} aria-label={`Modifier ${name}`}>Modifier</Button>
+                    {canWrite && <Button variant="invisible" onClick={() => void handleEdit({ id, name, kind, item })} aria-label={`Modifier ${name}`}>Modifier</Button>}
                     <Button variant="invisible" onClick={() => void handleReveal(item)} aria-label={`Révéler ${name}`}>
                       {revealed[id] === undefined ? 'Révéler 10 s' : 'Masquer'}
                     </Button>
                     <Button variant="invisible" onClick={() => void handleCopy(item)} aria-label={`Copier ${name}`}>Copier</Button>
                   </>
                 )}
-                <Button variant="invisible" onClick={() => void handleDelete(id, name)} aria-label={`Supprimer ${name}`}>Supprimer</Button>
+                {canWrite && <Button variant="invisible" onClick={() => void handleDelete(id, name)} aria-label={`Supprimer ${name}`}>Supprimer</Button>}
               </div>
             </>
           )}

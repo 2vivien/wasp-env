@@ -462,6 +462,70 @@ html[data-color-mode='light'] .wasp-vault-card button[data-variant='primary'] {
   background: var(--bgColor-default);
 }
 
+.wasp-dashboard-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+  margin-right: 24px;
+}
+
+.wasp-dashboard-nav a,
+.wasp-environment-list a {
+  color: var(--fgColor-accent);
+  text-decoration: none;
+}
+
+.wasp-dashboard-nav a:hover,
+.wasp-environment-list a:hover {
+  text-decoration: underline;
+}
+
+.wasp-security-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  border-top: var(--borderWidth-thin) solid var(--borderColor-default);
+}
+
+.wasp-security-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.wasp-security-row > div p:last-child {
+  color: var(--fgColor-muted);
+}
+
+.wasp-environment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  padding-left: 20px;
+}
+
+.wasp-share-permission {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wasp-share-permission select,
+.wasp-field select {
+  min-height: 32px;
+  padding: 4px 8px;
+  border: var(--borderWidth-thin) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-small);
+  background: var(--bgColor-default);
+  color: var(--fgColor-default);
+  font: inherit;
+}
+
 .wasp-inline-action {
   flex-wrap: wrap;
 }
@@ -653,6 +717,16 @@ html[data-color-mode='light'] .wasp-vault-card button[data-variant='primary'] {
   .wasp-dashboard-account,
   .wasp-dashboard-heading,
   .wasp-vault-panel-heading {
+    align-items: flex-start;
+  }
+
+  .wasp-dashboard-nav {
+    margin-left: 0;
+    margin-right: auto;
+    gap: 12px;
+  }
+
+  .wasp-security-row {
     align-items: flex-start;
   }
 
