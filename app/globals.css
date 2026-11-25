@@ -17,6 +17,35 @@
 @import '@primer/primitives/dist/css/functional/themes/dark.css';
 @import '@primer/primitives/dist/css/functional/themes/dark-dimmed.css';
 
+:root {
+  --wasp-accent-dark: #a8b88e;
+  --wasp-accent-light: #536844;
+  --wasp-focus-dark: #c2d2a7;
+  --wasp-focus-light: #405637;
+}
+
+html[data-color-mode='dark'][data-dark-theme='dark'] {
+  --fgColor-accent: var(--wasp-accent-dark);
+  --borderColor-accent-emphasis: var(--wasp-accent-dark);
+  --focus-outlineColor: var(--wasp-focus-dark);
+}
+
+html[data-color-mode='light'][data-light-theme='light'] {
+  --fgColor-accent: var(--wasp-accent-light);
+  --borderColor-accent-emphasis: var(--wasp-accent-light);
+  --focus-outlineColor: var(--wasp-focus-light);
+}
+
+.wasp-page .wasp-wordmark,
+.wasp-page .wasp-header-actions a,
+.wasp-page .wasp-hero-actions a {
+  color: var(--fgColor-default);
+}
+
+.wasp-page .wasp-eyebrow {
+  color: var(--wasp-accent-dark);
+}
+
 * {
   margin: 0;
   padding: 0;
