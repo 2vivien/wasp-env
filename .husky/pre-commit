@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+
+npx --no-install lint-staged
+
+if git diff --cached --name-only | grep -E '(^|/)\.env(\.|$)|(\.env\.(local|production|development))'; then
+  echo 'Refus: un fichier denvironnement est inclus dans le commit.'
+  exit 1
+fi
