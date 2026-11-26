@@ -5,7 +5,7 @@ import { Button, Heading, Text, TextInput } from '@primer/react'
 import { useRouter } from 'next/navigation'
 import { isValidHandle } from '@/src/modules/identity/handle'
 
-export function HandleOnboardingForm() {
+export function HandleOnboardingForm({ next = '/dashboard' }: { next?: string }) {
   const router = useRouter()
   const [handle, setHandle] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -29,7 +29,7 @@ export function HandleOnboardingForm() {
         return
       }
       if (!response.ok) throw new Error('Profile update failed.')
-      router.replace('/dashboard')
+      router.replace(next)
       router.refresh()
     } catch {
       setError('Impossible d’enregistrer le pseudo. Vérifiez la connexion puis réessayez.')
