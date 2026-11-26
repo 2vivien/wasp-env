@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { jsonNoStore, hasValidMutationHeaders } from '@/lib/api'
 import { getCurrentSession } from '@/lib/auth/session'
 import { db } from '@/lib/db'
-import { vaults } from '@/lib/db/schema'
+import { auditLogs, vaults } from '@/lib/db/schema'
 
 const envelopeSchema = z.object({
   v: z.literal(1),
@@ -27,6 +27,33 @@ const updateVaultSchema = z.object({
 }).strict()
 
 type RouteContext = { params: Promise<{ vaultId: string }> }
+
+const encMetaSchema = z.object({
+  v: z.literal(1), alg: z.literal('A256GCM'),
+  nonce: z.string().min(16).max(32), ct: z.string().min(32).max(12000),
+}).strict()
+
+export async function PATCH(request: Request, { params }: RouteContext) {
+  const session = await getCurrentSession()
+  if (!session?.user) return jsonNoStore({ error: { code: 'AUTH_REQUIRED' } }, 401)
+  if (!hasValidMutationHeaders(request, true)) return jsonNoStore({ error: { code: 'INVALID_REQUEST' } }, 400)
+  const { vaultId } = await params
+  if (!z.string().uuid().safeParse(vaultId).success) return jsonNoStore({ error: { code: 'VALIDATION' } }, 422)
+  let body: unknown
+  try { body = await request.json() } catch { return jsonNoStore({ error: { code: 'VALIDATION' } }, 422) }
+  const parsed = z.object({ encMeta: encMetaSchema }).strict().safeParse(body)
+  if (!parsed.success) return jsonNoStore({ error: { code: 'VALIDATION' } }, 422)
+
+  const [updated] = await db.update(vaults).set({ encMeta: parsed.data.encMeta, updatedAt: new Date() })
+    .where(and(eq(vaults.id, vaultId), eq(vaults.userId, session.user.id)))
+    .returning({ id: vaults.id })
+  if (!updated) return jsonNoStore({ error: { code: 'NOT_FOUND' } }, 404)
+  await db.insert(auditLogs).values({
+    id: crypto.randomUUID(), actorId: session.user.id, vaultId,
+    event: 'vault_updated', targetKind: 'vault', targetId: vaultId,
+  })
+  return jsonNoStore({ updated: true })
+}
 
 export async function PUT(request: Request, { params }: RouteContext) {
   const session = await getCurrentSession()

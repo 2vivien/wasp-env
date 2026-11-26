@@ -7,6 +7,8 @@ export type { Argon2Parameters } from './key-derivation'
 export { createPendingVaultKey, rewrapVaultPassphrase, unlockVaultKey, recoverVaultKey, recoveryGroups } from './vault-key'
 export { decryptVaultItemMetadata, decryptVaultItemMetadataWithScopeKey, decryptVaultItemValue, decryptVaultItemValueWithScopeKey, encryptVaultItemPayload, getVaultItemScopeKeys, rotateVaultItemPayload } from './vault-items'
 export type { VaultItemKind, VaultItemMetadata } from './vault-items'
+export { decryptVaultMeta, encryptVaultMeta } from './vault-meta'
+export type { VaultMeta } from './vault-meta'
 export type { EncryptedVaultItem, KdfParameters, KeyEnvelope, PendingVaultKey, WrappedVaultKey } from './vault-key'
 export {
   createAccountKey,

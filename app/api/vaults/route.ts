@@ -1,9 +1,9 @@
-import { eq } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { jsonNoStore, hasValidMutationHeaders } from '@/lib/api'
 import { getCurrentSession } from '@/lib/auth/session'
 import { db } from '@/lib/db'
-import { profiles, user, vaults } from '@/lib/db/schema'
+import { auditLogs, profiles, user, vaultMembers, vaults } from '@/lib/db/schema'
 
 const envelopeSchema = z.object({
   v: z.literal(1),
@@ -25,6 +25,11 @@ const createVaultSchema = z.object({
     opsLimit: z.number().int().min(2).max(10),
     memLimit: z.number().int().min(19 * 1024 * 1024).max(256 * 1024 * 1024),
   }).strict(),
+  kind: z.enum(['personal', 'shared']).default('personal'),
+  encMeta: z.object({
+    v: z.literal(1), alg: z.literal('A256GCM'),
+    nonce: z.string().min(16).max(32), ct: z.string().min(32).max(12000),
+  }).strict().optional(),
 }).strict()
 
 export async function GET(request: Request) {
@@ -34,12 +39,19 @@ export async function GET(request: Request) {
   const includeKeys = new URL(request.url).searchParams.get('includeKeys') === '1'
   const rows = await db.select({
     id: vaults.id,
+    kind: vaults.kind,
     keySalt: vaults.keySalt,
     ...(includeKeys ? { wrappedKey: vaults.wrappedKey } : {}),
     kdfParameters: vaults.kdfParameters,
+    encMeta: vaults.encMeta,
+    keyVersion: vaults.keyVersion,
+    archivedAt: vaults.archivedAt,
+    deletedAt: vaults.deletedAt,
     createdAt: vaults.createdAt,
     updatedAt: vaults.updatedAt,
-  }).from(vaults).where(eq(vaults.userId, session.user.id)).orderBy(vaults.updatedAt)
+  }).from(vaults)
+    .where(and(eq(vaults.userId, session.user.id), isNull(vaults.deletedAt)))
+    .orderBy(vaults.updatedAt)
   return jsonNoStore({ vaults: rows })
 }
 
@@ -67,19 +79,41 @@ export async function POST(request: Request) {
       .where(eq(profiles.userId, session.user.id)).for('update').limit(1)
     if (!profile?.handle) return 'PROFILE_REQUIRED'
 
-    const existing = await transaction.select({ id: vaults.id }).from(vaults)
-      .where(eq(vaults.userId, session.user.id)).limit(1)
-    if (existing.length > 0) return 'VAULT_EXISTS'
+    const [count] = await transaction.select({ count: sql<number>`count(*)::int` }).from(vaults)
+      .where(and(eq(vaults.userId, session.user.id), isNull(vaults.deletedAt)))
+    if ((count?.count ?? 0) >= 50) return 'VAULT_LIMIT'
+
+    if (parsed.data.kind === 'personal') {
+      const existing = await transaction.select({ id: vaults.id }).from(vaults)
+        .where(and(eq(vaults.userId, session.user.id), eq(vaults.kind, 'personal'))).limit(1)
+      if (existing.length > 0) return 'VAULT_EXISTS'
+    }
 
     await transaction.insert(vaults).values({
       id: parsed.data.id,
       userId: session.user.id,
+      kind: parsed.data.kind,
       keySalt: parsed.data.keySalt,
       wrappedKey: parsed.data.wrappedKey,
       kdfParameters: parsed.data.kdfParameters,
+      encMeta: parsed.data.encMeta ?? null,
     })
-    await transaction.update(profiles).set({ onboardingStep: 'done', updatedAt: new Date() })
-      .where(eq(profiles.userId, session.user.id))
+    await transaction.insert(vaultMembers).values({
+      vaultId: parsed.data.id,
+      userId: session.user.id,
+      role: 'owner',
+      addedBy: session.user.id,
+      permissions: {},
+    })
+    await transaction.insert(auditLogs).values({
+      id: crypto.randomUUID(), actorId: session.user.id, vaultId: parsed.data.id,
+      event: 'vault_created', targetKind: 'vault', targetId: parsed.data.id,
+      metadata: { kind: parsed.data.kind },
+    })
+    if (parsed.data.kind === 'personal') {
+      await transaction.update(profiles).set({ onboardingStep: 'done', updatedAt: new Date() })
+        .where(eq(profiles.userId, session.user.id))
+    }
     return 'CREATED'
   })
 
