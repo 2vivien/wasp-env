@@ -11,7 +11,7 @@ import { CommandPalette } from './command-palette'
 import { MOBILE_ITEMS, SIDEBAR_ITEMS } from './nav-items'
 import messages from '@/messages/fr.json'
 
-const PUBLIC_PREFIXES = ['/', '/login', '/onboarding', '/share/private']
+const PUBLIC_PREFIXES = ['/', '/l', '/login', '/onboarding', '/share/private', '/unlock']
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((prefix) => pathname === prefix || (prefix !== '/' && pathname.startsWith(`${prefix}/`)))

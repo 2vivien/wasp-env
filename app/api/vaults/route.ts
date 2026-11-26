@@ -27,13 +27,15 @@ const createVaultSchema = z.object({
   }).strict(),
 }).strict()
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getCurrentSession()
   if (!session?.user) return jsonNoStore({ error: { code: 'AUTH_REQUIRED' } }, 401)
 
+  const includeKeys = new URL(request.url).searchParams.get('includeKeys') === '1'
   const rows = await db.select({
     id: vaults.id,
     keySalt: vaults.keySalt,
+    ...(includeKeys ? { wrappedKey: vaults.wrappedKey } : {}),
     kdfParameters: vaults.kdfParameters,
     createdAt: vaults.createdAt,
     updatedAt: vaults.updatedAt,
