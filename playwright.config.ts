@@ -11,10 +11,10 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   reporter: 'list',
+  expect: { timeout: 10_000 },
   use: {
     baseURL,
     navigationTimeout: 60_000,
-    expect: { timeout: 10_000 },
     trace: 'on-first-retry',
     extraHTTPHeaders: { 'Cache-Control': 'no-cache' },
   },
