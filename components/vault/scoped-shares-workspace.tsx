@@ -7,10 +7,11 @@ import { decodeBase64Url, wipeBytes } from '@/src/crypto/encoding'
 import { decryptBytes, importAesKey } from '@/src/crypto/aead'
 import { openSealedData } from '@/src/crypto/keys'
 import { recoverIdentityPrivateKeys, unlockIdentityPrivateKeys } from '@/src/crypto/identity-material'
+import { can, type PermissionOverrides } from '@/lib/permissions'
 import { decryptVaultItemMetadataWithScopeKey, decryptVaultItemValueWithScopeKey } from '@/src/crypto/vault-items'
 import type { EncryptedVaultItem } from '@/src/crypto/vault-key'
 
-type Share = { id: string; vaultId: string; resourceId: string; keyVersion: number; resourceType: 'secret' | 'project'; encryptedScopeKey?: { v: 1; alg: 'X25519-SEAL'; ct: string }; status: 'pending' | 'accepted' | 'revoked'; expiresAt: string | null; ownerHandle?: string | null; recipientHandle?: string | null }
+type Share = { id: string; vaultId: string; resourceId: string; keyVersion: number; resourceType: 'secret' | 'project'; permissions?: PermissionOverrides; encryptedScopeKey?: { v: 1; alg: 'X25519-SEAL'; ct: string }; status: 'pending' | 'accepted' | 'revoked'; expiresAt: string | null; ownerHandle?: string | null; recipientHandle?: string | null }
 type SecretScopeKeys = { type: 'secret'; metadataKey: Uint8Array; secretKey: Uint8Array }
 type ProjectScopeKeys = { type: 'project'; projectMetadataKey: Uint8Array; environments: Record<string, { metadataKey: Uint8Array; fileKey: Uint8Array }> }
 type ScopeKeys = SecretScopeKeys | ProjectScopeKeys
@@ -40,7 +41,7 @@ async function fetchSharedProject(shareId: string): Promise<SharedProject> {
   return response.json() as Promise<SharedProject>
 }
 
-function SharedSecretCard({ share, keys }: { share: Share; keys: SecretScopeKeys }) {
+function SharedSecretCard({ share, keys }: { share: Share & { permissions?: PermissionOverrides }; keys: SecretScopeKeys }) {
   const [item, setItem] = useState<SharedItem | null>(null)
   const [name, setName] = useState('')
   const [value, setValue] = useState<string | null>(null)
@@ -48,6 +49,7 @@ function SharedSecretCard({ share, keys }: { share: Share; keys: SecretScopeKeys
   const [busy, setBusy] = useState(false)
 
   async function openSecret() {
+    if (!can('viewer', 'reveal', share.permissions)) { setNotice('La révélation n’est pas autorisée pour ce partage.'); return }
     setBusy(true); setNotice('')
     try {
       const result = await fetchSharedItem(share.id)
@@ -61,7 +63,7 @@ function SharedSecretCard({ share, keys }: { share: Share; keys: SecretScopeKeys
 
   return <article className="wasp-vault-card">
     <div className="wasp-vault-panel-heading"><div><Heading as="h3">{name || 'Secret partagé'}</Heading><Text size="small">Lecture seule · accès limité à un secret</Text></div><Button disabled={busy} onClick={() => void openSecret()}>{busy ? 'Déchiffrement…' : value === null ? 'Ouvrir dans ce navigateur' : 'Recharger'}</Button></div>
-    {value !== null && item && <div className="wasp-secret-row-copy"><Text>{name}</Text><code>{value}</code><Button onClick={async () => { await navigator.clipboard.writeText(value); setNotice('Copié dans le presse-papiers.') }}>Copier</Button></div>}
+    {value !== null && item && <div className="wasp-secret-row-copy"><Text>{name}</Text><code>{value}</code>{can('viewer', 'copy', share.permissions) && <Button onClick={async () => { await navigator.clipboard.writeText(value); setNotice('Copié dans le presse-papiers.') }}>Copier</Button>}{!can('viewer', 'copy', share.permissions) && <Text size="small">Copie désactivée par le partageur.</Text>}</div>}
     {notice && <Text role="status">{notice}</Text>}
   </article>
 }
