@@ -8,6 +8,29 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: wasp
+          POSTGRES_PASSWORD: wasp
+          POSTGRES_DB: wasp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://wasp:wasp@127.0.0.1:5432/wasp
+      BETTER_AUTH_SECRET: dummy-secret-of-at-least-32-characters
+      BETTER_AUTH_URL: http://127.0.0.1:3100
+      GOOGLE_CLIENT_ID: dummy-client
+      GOOGLE_CLIENT_SECRET: dummy-secret
+
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -18,21 +41,16 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
-        env:
-          DATABASE_URL: postgresql://user:password@127.0.0.1:5432/wasp?sslmode=require
-          BETTER_AUTH_SECRET: dummy-secret-of-at-least-32-characters
-          BETTER_AUTH_URL: http://localhost:3000
-          GOOGLE_CLIENT_ID: dummy-client
-          GOOGLE_CLIENT_SECRET: dummy-secret
+      - run: pnpm audit --audit-level high
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
         env:
           CI: true
-      - run: pnpm audit --audit-level high
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
