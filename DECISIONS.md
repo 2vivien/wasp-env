@@ -33,4 +33,6 @@ The password, root, and vault keys stay in memory only. This does not replace au
 
 ## 2026-11-26 — Licence
 
-- **Statut :** à trancher par Vivien entre MIT et AGPL-3.0. Aucun fichier `LICENSE` n’est généré tant que le choix n’est pas explicite.
+- **Choix :** MIT, fichier `LICENSE` à la racine.
+- **Raison :** décision explicite du propriétaire du produit ; favorise la redistribution et les contributions ouvertes.
+- **Alternative écartée :** AGPL-3.0, plus restrictive pour les réutilisations SaaS fermées.

@@ -32,10 +32,11 @@ Commandes qualité : `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`.
 - [Modèle de menace](THREAT_MODEL.md)
 - [Signalement de vulnérabilité](SECURITY.md)
 - [Décisions techniques](DECISIONS.md)
+- [Licence MIT](LICENSE)
 
 ## Périmètre restant
 
-Voir `docs/etat-fonctionnel.md` et `docs/13-FEUILLE-DE-ROUTE.md`. Les principaux points ouverts sont les coffres multiples et leurs membres, le kanban et le comparateur ENV, la recherche globale complète, les réglages avancés, la rotation de coffre/projet, le rate limiting général, la couverture E2E/IDOR et l’audit externe.
+Voir `docs/etat-fonctionnel.md` et `docs/13-FEUILLE-DE-ROUTE.md`. Les principaux points ouverts sont la rotation réelle des blobs pilotée par l’UI, les champs spécifiques par catégorie, le déplacement de secrets entre coffres, l’historique ENV complet, les empreintes publiques/TOFU, la couverture E2E/IDOR/a11y et l’audit externe.
 
 ## Avertissement
 
