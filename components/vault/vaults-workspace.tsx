@@ -5,6 +5,7 @@ import useSWR from 'swr'
 import { Button, Heading, Text, TextInput } from '@primer/react'
 import Link from 'next/link'
 import { decryptVaultMeta, encryptVaultMeta, type VaultMeta } from '@/src/crypto/vault-meta'
+import { VaultMembersPanel } from './vault-members-panel'
 import type { EncryptedBlob } from '@/src/crypto/aead'
 
 type VaultRow = {
@@ -110,6 +111,7 @@ export function VaultsWorkspace() {
             <Button variant="danger" disabled={confirmName !== vault.meta?.name} onClick={() => void post(vault.id, 'trash')}>Supprimer définitivement</Button>
             <Button variant="invisible" onClick={() => setConfirmId(null)}>Annuler</Button>
           </div>}
+          {vault.archivedAt === null && <VaultMembersPanel vaultId={vault.id} kind={vault.kind} />}
         </article>
       ))}
     </section>

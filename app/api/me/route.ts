@@ -18,5 +18,5 @@ export async function GET() {
   const [vault] = await db.select({ id: vaults.id }).from(vaults)
     .where(eq(vaults.userId, session.user.id)).limit(1)
 
-  return jsonNoStore({ profile: profile ?? null, hasVaultKeys: Boolean(vault) })
+  return jsonNoStore({ userId: session.user.id, profile: profile ?? null, hasVaultKeys: Boolean(vault) })
 }
