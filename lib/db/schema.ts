@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm'
 import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 import type { WrappedVaultKey, KdfParameters, EncryptedVaultItem } from '@/src/crypto/vault-key'
 
@@ -67,13 +68,45 @@ export const profiles = pgTable('profiles', {
 
 export const vaults = pgTable('vaults', {
   id: text('id').primaryKey(),
-  userId: text('userId').notNull(),
+  userId: text('userId').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  kind: text('kind').$type<'personal' | 'shared'>().notNull().default('personal'),
   keySalt: text('keySalt').notNull(),
   wrappedKey: jsonb('wrappedKey').$type<WrappedVaultKey>().notNull(),
   kdfParameters: jsonb('kdfParameters').$type<KdfParameters>().notNull(),
+  encMeta: jsonb('encMeta').$type<{ v: 1; alg: 'A256GCM'; nonce: string; ct: string }>(),
+  keyVersion: integer('keyVersion').notNull().default(1),
+  archivedAt: timestamp('archivedAt', { withTimezone: true }),
+  deletedAt: timestamp('deletedAt', { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
-}, (table) => [index('vaults_user_id_idx').on(table.userId)])
+}, (table) => [
+  index('vaults_user_id_idx').on(table.userId),
+  uniqueIndex('vaults_personal_user_unique').on(table.userId).where(sql`${table.kind} = 'personal'`),
+  index('vaults_active_user_idx').on(table.userId, table.updatedAt).where(sql`${table.deletedAt} IS NULL`),
+  index('vaults_audit_idx').on(table.id, table.createdAt),
+])
+
+export const vaultMembers = pgTable('vault_members', {
+  vaultId: text('vaultId').notNull().references(() => vaults.id, { onDelete: 'cascade' }),
+  userId: text('userId').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  role: text('role').$type<'viewer' | 'user' | 'editor' | 'admin' | 'owner'>().notNull().default('viewer'),
+  permissions: jsonb('permissions').notNull().default({}),
+  addedBy: text('addedBy').references(() => user.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+}, (table) => [
+  uniqueIndex('vault_members_vault_user_unique').on(table.vaultId, table.userId),
+  uniqueIndex('vault_members_owner_unique').on(table.vaultId).where(sql`${table.role} = 'owner'`),
+  index('vault_members_user_idx').on(table.userId),
+])
+
+export const vaultKeyEnvelopes = pgTable('vault_key_envelopes', {
+  vaultId: text('vaultId').notNull().references(() => vaults.id, { onDelete: 'cascade' }),
+  userId: text('userId').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  keyVersion: integer('keyVersion').notNull().default(1),
+  sealedKey: jsonb('sealedKey').$type<{ v: 1; alg: 'X25519-SEAL'; ct: string }>().notNull(),
+  senderPublicKey: text('senderPublicKey').notNull(),
+  createdAt: createdAt(),
+}, (table) => [uniqueIndex('vault_key_envelopes_pk').on(table.vaultId, table.userId, table.keyVersion)])
 
 export const vaultItems = pgTable('vault_items', {
   id: text('id').primaryKey(),
