@@ -11,6 +11,7 @@ export default defineConfig({
     },
   },
   test: {
+    exclude: ['e2e/**', 'node_modules/**', 'dist/**', '.next/**'],
     env: {
       DATABASE_URL: 'postgresql://user:password@127.0.0.1:5432/wasp?sslmode=require',
       BETTER_AUTH_SECRET: 'dummy-secret-of-at-least-32-characters',

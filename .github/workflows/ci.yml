@@ -28,6 +28,10 @@ jobs:
           BETTER_AUTH_URL: http://localhost:3000
           GOOGLE_CLIENT_ID: dummy-client
           GOOGLE_CLIENT_SECRET: dummy-secret
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+        env:
+          CI: true
       - run: pnpm audit --audit-level high
       - uses: gitleaks/gitleaks-action@v2
         env:

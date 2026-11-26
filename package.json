@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:crypto": "vitest run src/crypto",
+    "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "format": "prettier --write .",
@@ -41,6 +42,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@types/node": "^22.0.0",
     "@types/pg": "^8.23.1",
     "@types/qrcode": "^1.5.6",
