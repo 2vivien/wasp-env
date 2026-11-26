@@ -21,8 +21,36 @@ describe('encrypted vault items', () => {
     const item = await encryptVaultItemPayload(vaultId, itemId, 1, 'Production API key', 'private-value')
     expect(item.metadata.ct).not.toContain('Production API key')
     expect(item.value.ct).not.toContain('private-value')
-    await expect(decryptVaultItemMetadata(vaultId, itemId, item)).resolves.toEqual({ name: 'Production API key', kind: 'secret' })
+    await expect(decryptVaultItemMetadata(vaultId, itemId, item)).resolves.toEqual(expect.objectContaining({ name: 'Production API key', kind: 'secret' }))
     await expect(decryptVaultItemValue(vaultId, itemId, item)).resolves.toBe('private-value')
+  })
+
+  it('round-trips structured secret metadata without leaking it in ciphertext', async () => {
+    const vaultId = crypto.randomUUID()
+    const itemId = crypto.randomUUID()
+    const rootKey = createAccountKey()
+    rootKeys.push(rootKey)
+    storeKey(vaultId, rootKey)
+
+    const item = await encryptVaultItemPayload(vaultId, itemId, 1, 'API key', 'private-value', 'secret', 1, undefined, false, {
+      category: 'api-keys',
+      description: 'Clé de production',
+      tags: ['prod', 'api'],
+      notes: 'Rotate every 90 days',
+      customFields: [{ key: 'scope', value: 'read:write', secret: false }],
+      favorite: true,
+      expiresAt: '2027-01-01T00:00:00.000Z',
+    })
+    expect(JSON.stringify(item)).not.toContain('Clé de production')
+    const meta = await decryptVaultItemMetadata(vaultId, itemId, item)
+    expect(meta).toMatchObject({
+      name: 'API key',
+      category: 'api-keys',
+      description: 'Clé de production',
+      tags: ['prod', 'api'],
+      notes: 'Rotate every 90 days',
+      favorite: true,
+    })
   })
 
   it('rotates a secret key and re-encrypts every historical revision', async () => {
@@ -40,7 +68,7 @@ describe('encrypted vault items', () => {
     expect(await decryptVaultItemValue(vaultId, itemId, rotated)).toBe('current value')
     const oldRevision = { ...rotated, version: rotated.history?.[0]?.version ?? 1, metadata: rotated.history?.[0]?.metadata ?? rotated.metadata, value: rotated.history?.[0]?.value ?? rotated.value }
     await expect(decryptVaultItemValue(vaultId, itemId, oldRevision)).resolves.toBe('old value')
-    await expect(decryptVaultItemMetadata(vaultId, itemId, oldRevision)).resolves.toEqual({ name: 'API key', kind: 'secret' })
+    await expect(decryptVaultItemMetadata(vaultId, itemId, oldRevision)).resolves.toEqual(expect.objectContaining({ name: 'API key', kind: 'secret' }))
   })
 
   it('round-trips an environment file without changing its BOM or line endings', async () => {
@@ -52,7 +80,7 @@ describe('encrypted vault items', () => {
     const source = '\uFEFF# local config\r\nexport API_URL="https://example.test?a=b"\r\nTOKEN=first\nTOKEN=second\n'
 
     const item = await encryptVaultItemPayload(vaultId, itemId, 1, '.env.local', source, 'env-file')
-    await expect(decryptVaultItemMetadata(vaultId, itemId, item)).resolves.toEqual({ name: '.env.local', kind: 'env-file' })
+    await expect(decryptVaultItemMetadata(vaultId, itemId, item)).resolves.toEqual(expect.objectContaining({ name: '.env.local', kind: 'env-file' }))
     await expect(decryptVaultItemValue(vaultId, itemId, item, 'env-file')).resolves.toBe(source)
   })
 

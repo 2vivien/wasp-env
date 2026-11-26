@@ -4,8 +4,51 @@ import { withKey } from './key-store'
 import type { EncryptedVaultItem, KeyEnvelope } from './vault-key'
 
 export type VaultItemKind = 'secret' | 'env-file'
-export type VaultItemMetadata = { name: string; kind: VaultItemKind }
+export type SecretCategory =
+  | 'passwords' | 'api-keys' | 'tokens' | 'emails' | 'databases'
+  | 'ssh' | 'certificates' | 'infrastructure' | 'env' | 'custom'
+
+export type SecretCustomField = { key: string; value: string; secret: boolean }
+export type VaultItemMetadata = {
+  name: string
+  kind: VaultItemKind
+  category: SecretCategory
+  description: string
+  tags: string[]
+  notes: string
+  customFields: SecretCustomField[]
+  favorite: boolean
+  archivedAt: string | null
+  expiresAt: string | null
+}
 export type VaultItemScopeKeys = { metadataKey: Uint8Array; secretKey: Uint8Array }
+
+const CATEGORIES: readonly SecretCategory[] = [
+  'passwords', 'api-keys', 'tokens', 'emails', 'databases',
+  'ssh', 'certificates', 'infrastructure', 'env', 'custom',
+]
+
+function normalizeMetadata(value: Partial<VaultItemMetadata> & { name?: unknown; kind?: unknown }): VaultItemMetadata {
+  const rawTags = Array.isArray(value.tags) ? value.tags.filter((tag): tag is string => typeof tag === 'string') : []
+  const rawFields = Array.isArray(value.customFields) ? value.customFields : []
+  return {
+    name: typeof value.name === 'string' ? value.name : 'Secret sans nom',
+    kind: value.kind === 'env-file' ? 'env-file' : 'secret',
+    category: CATEGORIES.includes(value.category as SecretCategory) ? value.category as SecretCategory : 'custom',
+    description: typeof value.description === 'string' ? value.description : '',
+    tags: rawTags.slice(0, 20).map((tag) => tag.slice(0, 32)),
+    notes: typeof value.notes === 'string' ? value.notes : '',
+    customFields: rawFields.slice(0, 30).flatMap((field) => {
+      if (!field || typeof field !== 'object') return []
+      const entry = field as Partial<SecretCustomField>
+      if (typeof entry.key !== 'string' || typeof entry.value !== 'string') return []
+      return [{ key: entry.key.slice(0, 64), value: entry.value, secret: entry.secret === true }]
+    }),
+    favorite: value.favorite === true,
+    archivedAt: typeof value.archivedAt === 'string' ? value.archivedAt : null,
+    expiresAt: typeof value.expiresAt === 'string' ? value.expiresAt : null,
+  }
+}
 
 async function openScopeKeys(rawRootKey: Uint8Array, vaultId: string, itemId: string, item: Pick<EncryptedVaultItem, 'scopeKeyEnvelope' | 'scopeKeyVersion'>): Promise<VaultItemScopeKeys> {
   if (!item.scopeKeyEnvelope) {
@@ -47,8 +90,8 @@ export async function decryptVaultItemMetadata(vaultId: string, itemId: string, 
     let bytes: Uint8Array | undefined
     try {
       bytes = await decryptBytes(key, item.metadata, { vaultId, objectType: 'secret-meta', objectId: itemId, version: item.version })
-      const parsed = JSON.parse(new TextDecoder().decode(bytes)) as { name?: unknown; kind?: unknown }
-      return { name: typeof parsed.name === 'string' ? parsed.name : 'Secret sans nom', kind: parsed.kind === 'env-file' ? 'env-file' : 'secret' }
+      const parsed = JSON.parse(new TextDecoder().decode(bytes)) as Partial<VaultItemMetadata>
+      return normalizeMetadata(parsed)
     } finally { if (bytes) wipeBytes(bytes); wipeBytes(scopeKeys.metadataKey); wipeBytes(scopeKeys.secretKey) }
   })
 }
@@ -79,8 +122,8 @@ export async function decryptVaultItemMetadataWithScopeKey(vaultId: string, item
   const key = await importAesKey(metadataKeyBytes, ['decrypt'])
   const bytes = await decryptBytes(key, item.metadata, { vaultId, objectType: 'secret-meta', objectId: itemId, version: item.version })
   try {
-    const parsed = JSON.parse(new TextDecoder().decode(bytes)) as { name?: unknown; kind?: unknown }
-    return { name: typeof parsed.name === 'string' ? parsed.name : 'Secret sans nom', kind: parsed.kind === 'env-file' ? 'env-file' : 'secret' }
+    const parsed = JSON.parse(new TextDecoder().decode(bytes)) as Partial<VaultItemMetadata>
+    return normalizeMetadata(parsed)
   } finally { bytes.fill(0) }
 }
 
@@ -150,8 +193,9 @@ export async function encryptVaultItemPayload(
   scopeKeyVersion = 1,
   scopeKeyEnvelope?: KeyEnvelope,
   legacyMode = false,
+  details: Partial<VaultItemMetadata> = {},
 ): Promise<EncryptedVaultItem> {
-  const metadataBytes = new TextEncoder().encode(JSON.stringify({ name: name.trim(), kind }))
+  const metadataBytes = new TextEncoder().encode(JSON.stringify(normalizeMetadata({ ...details, name: name.trim(), kind })))
   const valueBytes = new TextEncoder().encode(kind === 'env-file' ? value : JSON.stringify({ value }))
   try {
     return await withKey(vaultId, async (rawRootKey) => {
