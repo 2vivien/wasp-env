@@ -4,12 +4,13 @@ Gestionnaire de secrets zero-knowledge en développement. Les valeurs et métado
 
 ## Fonctionnalités présentes
 
-- Connexion Google avec Better Auth, pseudo public et configuration de clés d’identité.
-- Coffre personnel chiffré, création/lecture/modification/suppression de secrets et import/export de fichiers `.env`.
+- Connexion Google avec Better Auth, pseudo public vérifié en direct, onboarding reprenable et page de déverrouillage dédiée.
+- Coquille Vercel/GitHub : sidebar, topbar, navigation mobile, palette `⌘K`/`Ctrl+K`, pages 404/erreur.
+- Coffre personnel chiffré, secrets versionnés, historique/restauration, fichiers `.env` importés/exportés sans altération.
 - Projets et environnements chiffrés, création, renommage et suppression logique.
-- Partage d’un coffre avec un pseudo, lecture ou lecture-écriture, acceptation et révocation.
-- Liste/révocation des sessions et journal d’activité.
-- Limites validées aux frontières API, réponses `no-store`, contrôle d’origine des mutations et données utilisateur filtrées par session.
+- Partage de coffre, partages ciblés secret/projet, liens privés avec QR/code, groupes, journal d’activité.
+- Sessions révocables, sauvegarde chiffrée, permissions atomiques, proxy de session, CSP stricte avec nonce et erreurs API normalisées.
+- Migration Drizzle initiale générée et relue ; limites centralisées et journal Pino avec rédaction.
 
 ## Installation locale
 
@@ -17,14 +18,16 @@ Prérequis : Node.js 24, pnpm et un projet PostgreSQL/Neon configuré.
 
 1. Cloner le dépôt.
 2. Installer les dépendances avec `pnpm install --frozen-lockfile`.
-3. Créer `.env.development.local` à partir de `.env.example` et renseigner les variables OAuth, Better Auth et PostgreSQL.
-4. Appliquer le schéma/migrations de base de données correspondant à cette révision.
+3. Copier `.env.example` vers `.env.development.local` et renseigner PostgreSQL, Better Auth et Google.
+4. Appliquer la migration : `pnpm db:migrate`.
 5. Démarrer avec `pnpm dev`.
 
-Commandes qualité : `pnpm lint`, `pnpm typecheck`, `pnpm test`.
+Commandes qualité : `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`.
 
 ## Documentation
 
+- [Spécification MVP](docs/00-LIRE-EN-PREMIER.md)
+- [État fonctionnel](docs/etat-fonctionnel.md)
 - [Guide utilisateur](docs/guide-utilisateur.md)
 - [Modèle de menace](THREAT_MODEL.md)
 - [Signalement de vulnérabilité](SECURITY.md)
@@ -32,7 +35,7 @@ Commandes qualité : `pnpm lint`, `pnpm typecheck`, `pnpm test`.
 
 ## Périmètre restant
 
-La spécification MVP complète prévoit aussi les coffres multiples, recherche locale globale, partage partiel (projet/secret), liens privés et QR, groupes, comparaison ENV sans valeurs, restauration d’historique, rotation de clés, corbeille, réglages avancés, suppression de compte, sauvegarde chiffrée, tests d’intégration/E2E et audit externe. Ces parcours ne sont pas implémentés dans cette révision ; voir la feuille de route initiale avant toute annonce de disponibilité.
+Voir `docs/etat-fonctionnel.md` et `docs/13-FEUILLE-DE-ROUTE.md`. Les principaux points ouverts sont les coffres multiples et leurs membres, le kanban et le comparateur ENV, la recherche globale complète, les réglages avancés, la rotation de coffre/projet, le rate limiting général, la couverture E2E/IDOR et l’audit externe.
 
 ## Avertissement
 

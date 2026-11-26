@@ -1,16 +1,15 @@
 # État fonctionnel de la révision
 
-Cette page décrit la différence entre le cahier des charges MVP et l’application présente dans ce dépôt. Elle évite de présenter des écrans de démonstration ou des fonctionnalités planifiées comme déjà livrés.
+Cette page décrit l’écart entre le cahier des charges MVP (`docs/00` à `docs/13`) et l’application présente dans ce dépôt. Les fonctionnalités listées comme partielles ont une API ou un écran, mais pas encore tous les états, contrôles, tests ou contraintes exigés.
 
 | Domaine | Disponible dans cette révision | À construire / valider |
 |---|---|---|
-| Connexion | Google, Better Auth, profil par pseudo | Reprise complète d’onboarding, changement de phrase/récupération |
-| Coffre | Coffre personnel, chiffrement côté client | Plusieurs coffres, archivage, corbeille, transfert et membres avancés |
-| Secrets | Ajout, révélation temporaire, copie, modification, suppression, historique chiffré (50 versions) et restauration d’une ancienne version ; recherche locale dans les noms du coffre ouvert | Recherche globale multi-coffres/projets, catégories, favoris, champs personnalisés, déplacement |
-| Projets | Création, renommage, suppression logique | Description/tags, vue kanban, déplacement/copier entre environnements |
-| Environnements | Création, renommage, suppression logique, un fichier chiffré par environnement | Variables distinctes, parser/export byte-à-byte exhaustif, comparaison, historique, duplication |
-| Partage | Invitation nominative au niveau coffre; partage lecture seule d’un secret ou projet par pseudo ou vers les membres actuels d’un groupe; liens privés + QR avec code facultatif, expiration, plafond d’ouvertures, révocation et limitation distribuée des tentatives de code | Nouveaux membres d’un groupe à réinviter; rotation d’un projet après révocation; audit externe |
-| Sécurité | Sessions/révocation, journal d’activité, verrouillage client, export chiffré, import/restauration non destructive, migration des clés aléatoires de secrets, rotation d’un secret et de son historique, code d’accès haché avec scrypt et limite Redis atomique | Rotation des clés de projets après révocation, reprise UI de rotation complète, suite d’intégration DB/IDOR/E2E/a11y et revue sécurité |
-| Production | Tests unitaires crypto, typecheck, lint et build; routes authentifiées, états d’erreur, chiffrement client; limite Redis des essais de code des liens | Rate limiting distribué des autres endpoints, revue RLS, audit indépendant |
+| Socle | Tokens Vercel centralisés, coquille sidebar/topbar/mobile, `⌘K`/`Ctrl+K`, pages système, proxy de session, CSP avec nonce, migration Drizzle initiale, erreurs API normalisées, permissions atomiques testées | CI, Husky, gitleaks, Playwright, audits, licence, budget de performance, ESLint taille de fichiers |
+| Connexion | Google via Better Auth, pseudo avec disponibilité en direct, onboarding reprenable en 3 étapes, page `/unlock`, clé de récupération, changement de phrase | `email_verified` explicite, cookie cache/prefix, proxy OAuth affiné, sessions multi-onglets complètes, handle modifiable 1×/30 j |
+| Coffre | Coffre personnel chiffré, liste des coffres, déverrouillage par phrase ou récupération | Coffres multiples, métadonnées chiffrées, corbeille/archivage, membres/rôles, transfert, rotation de coffre |
+| Secrets | Création, édition versionnée, suppression, historique, restauration, recherche locale, révélation 10 s, copie 30 s | Catégories, champs par catégorie, tags, notes, favoris, archivage, déplacement, doublon, générateur, diff masqué, page dédiée complète |
+| Projets et environnements | Création, renommage, suppression logique, environnements chiffrés, éditeur de fichier ENV, import/export sans altération | Kanban, DnD clavier, comparateur sans valeurs, duplication, déplacement, historique ENV, import multi-fichiers |
+| Partage | Coffre `read`/`write`, partage ciblé secret/projet en lecture seule, liens privés + QR + code + limite Redis, groupes, révocation, permissions atomiques stockées | Rôles appliqués partout, exceptions complètes, invitations dédiées, journaux d’usage, rotation projet/coffre, empreintes/TOFU |
+| Sécurité | Sessions, révocation, journal d’activité, sauvegarde chiffrée, verrouillage à l’inactivité, rédaction des logs | Réglages (délais, thème, densité), régénération de clé de récupération, rate limiting général, RLS, audit externe |
 
-Avant d’annoncer une fonction comme terminée, ajouter son interface, endpoint authentifié/autorisé, états d’erreur et tests associés.
+Avant d’annoncer une fonction comme terminée, ajouter son interface complète, son endpoint autorisé, ses états d’erreur/chargement/vide et ses tests.
