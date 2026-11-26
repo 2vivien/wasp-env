@@ -8,6 +8,7 @@ export { createPendingVaultKey, rewrapVaultPassphrase, unlockVaultKey, recoverVa
 export { decryptVaultItemMetadata, decryptVaultItemMetadataWithScopeKey, decryptVaultItemValue, decryptVaultItemValueWithScopeKey, encryptVaultItemPayload, getVaultItemScopeKeys, rotateVaultItemPayload } from './vault-items'
 export type { VaultItemKind, VaultItemMetadata, SecretCategory, SecretCustomField } from './vault-items'
 export { decryptVaultMeta, encryptVaultMeta } from './vault-meta'
+export { compareFingerprints, valueFingerprint } from './value-hmac'
 export type { VaultMeta } from './vault-meta'
 export type { EncryptedVaultItem, KdfParameters, KeyEnvelope, PendingVaultKey, WrappedVaultKey } from './vault-key'
 export {

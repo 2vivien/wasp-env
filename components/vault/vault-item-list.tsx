@@ -8,6 +8,7 @@ import { Button, Text, TextInput } from '@primer/react'
 import { decodeBase64Url, encodeBase64Url, randomBytes, wipeBytes } from '@/src/crypto/encoding'
 import { sealDataForMember } from '@/src/crypto/keys'
 import { decryptVaultItemMetadata, decryptVaultItemValue, encryptVaultItemPayload, getVaultItemScopeKeys, rotateVaultItemPayload } from '@/src/crypto/vault-items'
+import { compareFingerprints } from '@/src/crypto/value-hmac'
 import type { EncryptedVaultItem } from '@/src/crypto/vault-key'
 import type { VaultItemKind, VaultItemMetadata } from '@/src/crypto/vault-items'
 import { VaultItemEditor } from './vault-item-editor'
@@ -53,6 +54,7 @@ export function VaultItemList({
   const [query, setQuery] = useState('')
   const [historyItemId, setHistoryItemId] = useState<string | null>(null)
   const [showArchived, setShowArchived] = useState(false)
+  const [diffNotice, setDiffNotice] = useState('')
   const [createdLink, setCreatedLink] = useState<{ id: string; itemId: string; url: string; qr: string; hasAccessCode: boolean } | null>(null)
   const [linkBusy, setLinkBusy] = useState(false)
   const [sharingItemId, setSharingItemId] = useState<string | null>(null)
@@ -169,6 +171,18 @@ export function VaultItemList({
       if (!response.ok) throw new Error('Duplicate failed.')
       await onUpdated()
     } catch { setHasError(true) }
+  }
+
+  async function compareRevision(entry: ItemName, revision: NonNullable<EncryptedVaultItem['history']>[number]) {
+    setDiffNotice('Comparaison…')
+    try {
+      const [currentValue, oldValue] = await Promise.all([
+        decryptVaultItemValue(vaultId, entry.id, entry.item.encryptedPayload, entry.kind),
+        decryptVaultItemValue(vaultId, entry.id, { version: revision.version, metadata: revision.metadata, value: revision.value }, entry.kind),
+      ])
+      const same = await compareFingerprints(vaultId, entry.id, currentValue, oldValue)
+      setDiffNotice(same ? 'Valeur identique.' : 'Valeur modifiée.')
+    } catch { setDiffNotice('Comparaison impossible. Déverrouillez le coffre.') }
   }
 
   async function handleRestore(entry: ItemName, revision: NonNullable<EncryptedVaultItem['history']>[number]) {
@@ -430,6 +444,7 @@ export function VaultItemList({
       {hasError && <Text role="alert" className="wasp-auth-error">Un élément ne peut pas être déchiffré ou restauré. Vérifiez que le coffre est déverrouillé et réessayez.</Text>}
       {notice && <Text role="status" className="wasp-copy-notice">{notice}</Text>}
       {rotationNotice && <Text role="status" className="wasp-copy-notice">{rotationNotice}</Text>}
+      {diffNotice && <Text role="status" className="wasp-copy-notice">{diffNotice}</Text>}
       {filteredNames.length === 0 && <Text className="wasp-empty-note">Aucun secret ne correspond à cette recherche.</Text>}
       {filteredNames.map(({ id, name, kind, meta, item }) => (
         <article className="wasp-secret-row" key={id}>
@@ -504,6 +519,7 @@ export function VaultItemList({
                       {[...(item.encryptedPayload.history ?? [])].reverse().map((revision) => (
                         <li key={`${id}-${revision.version}`}>
                           <Text size="small">Version {revision.version} · {new Date(revision.createdAt).toLocaleString('fr-FR')}</Text>
+                          <Button variant="invisible" onClick={() => void compareRevision({ id, name, kind, meta, item }, revision)}>Comparer</Button>
                           <Button variant="default" onClick={() => void handleRestore({ id, name, kind, meta, item }, revision)}>
                             Restaurer
                           </Button>
