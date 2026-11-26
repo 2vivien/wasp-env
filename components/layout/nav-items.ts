@@ -1,4 +1,4 @@
-export type NavItem = { href: string; key: 'dashboard' | 'vaults' | 'projects' | 'secrets' | 'env' | 'shared' | 'groups' | 'activity' | 'settings' }
+export type NavItem = { href: string; key: 'dashboard' | 'vaults' | 'projects' | 'secrets' | 'env' | 'shared' | 'sharing' | 'invitations' | 'groups' | 'activity' | 'settings' }
 
 export const SIDEBAR_ITEMS: NavItem[] = [
   { href: '/dashboard', key: 'dashboard' },
@@ -7,6 +7,8 @@ export const SIDEBAR_ITEMS: NavItem[] = [
   { href: '/secrets', key: 'secrets' },
   { href: '/env', key: 'env' },
   { href: '/shared', key: 'shared' },
+  { href: '/sharing', key: 'sharing' },
+  { href: '/invitations', key: 'invitations' },
   { href: '/groups', key: 'groups' },
   { href: '/activity', key: 'activity' },
   { href: '/settings', key: 'settings' },

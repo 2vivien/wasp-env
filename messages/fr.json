@@ -6,6 +6,8 @@
     "secrets": "Secrets",
     "env": "Variables ENV",
     "shared": "Partagés",
+    "sharing": "Mes partages",
+    "invitations": "Invitations",
     "groups": "Groupes",
     "activity": "Activité",
     "settings": "Réglages",
