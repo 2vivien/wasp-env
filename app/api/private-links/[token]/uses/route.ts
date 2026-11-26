@@ -5,23 +5,31 @@ import { jsonNoStore } from '@/lib/api'
 import { db } from '@/lib/db'
 import { privateShareLinkUses, privateShareLinks } from '@/lib/db/schema'
 
-type RouteContext = { params: Promise<{ id: string }> }
+type RouteContext = { params: Promise<{ token: string }> }
 
 export async function GET(_request: Request, { params }: RouteContext) {
   const session = await getCurrentSession()
   if (!session?.user) return jsonNoStore({ error: { code: 'AUTH_REQUIRED' } }, 401)
-  const { id } = await params
-  if (!z.string().uuid().safeParse(id).success) return jsonNoStore({ error: { code: 'VALIDATION' } }, 422)
+  const { token } = await params
+  if (!z.string().uuid().safeParse(token).success)
+    return jsonNoStore({ error: { code: 'VALIDATION' } }, 422)
 
-  const [link] = await db.select({ id: privateShareLinks.id }).from(privateShareLinks)
-    .where(and(eq(privateShareLinks.id, id), eq(privateShareLinks.ownerId, session.user.id))).limit(1)
+  const [link] = await db
+    .select({ id: privateShareLinks.id })
+    .from(privateShareLinks)
+    .where(and(eq(privateShareLinks.id, token), eq(privateShareLinks.ownerId, session.user.id)))
+    .limit(1)
   if (!link) return jsonNoStore({ error: { code: 'NOT_FOUND' } }, 404)
 
-  const rows = await db.select({
-    usedAt: privateShareLinkUses.usedAt,
-    clientFingerprintHash: privateShareLinkUses.clientFingerprintHash,
-  }).from(privateShareLinkUses).where(eq(privateShareLinkUses.linkId, id))
-    .orderBy(desc(privateShareLinkUses.usedAt)).limit(200)
+  const rows = await db
+    .select({
+      usedAt: privateShareLinkUses.usedAt,
+      clientFingerprintHash: privateShareLinkUses.clientFingerprintHash,
+    })
+    .from(privateShareLinkUses)
+    .where(eq(privateShareLinkUses.linkId, token))
+    .orderBy(desc(privateShareLinkUses.usedAt))
+    .limit(200)
   return jsonNoStore({
     uses: rows.map((row) => ({
       usedAt: row.usedAt,

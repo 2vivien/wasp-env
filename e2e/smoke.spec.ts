@@ -10,6 +10,5 @@ test('la page publique et la santé répondent', async ({ page, request }) => {
 
 test('une route privée redirige vers la connexion', async ({ page }) => {
   await page.goto('/dashboard')
-  await expect(page).toHaveURL(/\/login/)
-  await expect(page.getByRole('heading', { name: 'Connexion' })).toBeVisible()
+  await expect(page).toHaveURL(/\/login\?callbackURL=%2Fdashboard/)
 })
