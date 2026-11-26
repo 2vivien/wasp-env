@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import useSWR from 'swr'
-import Link from 'next/link'
 import { Button, Heading, Text, TextInput } from '@primer/react'
 
 type Group = { id: string; name: string; members: Array<{ userId: string; handle: string | null; displayName: string | null }> }
@@ -83,8 +82,7 @@ export function GroupManager() {
     finally { setBusy(false) }
   }
 
-  return <main className="wasp-dashboard">
-    <header className="wasp-dashboard-header"><Link className="wasp-wordmark" href="/dashboard">Wasp</Link><nav className="wasp-dashboard-nav" aria-label="Navigation principale"><Link href="/dashboard">Coffre</Link><Link href="/projects">Projets</Link><Link href="/shared">Partagés</Link><Link href="/security">Sécurité</Link></nav></header>
+  return (
     <section className="wasp-dashboard-content">
       <Text className="wasp-eyebrow">ACCÈS ET COLLABORATION</Text>
       <Heading as="h1">Groupes</Heading>
@@ -99,5 +97,5 @@ export function GroupManager() {
       {!isLoading && (data?.groups.length ?? 0) === 0 && <Text>Aucun groupe pour le moment.</Text>}
       <Text size="small">Les partages aux groupes restent limités au contenu chiffré explicitement sélectionné.</Text>
     </section>
-  </main>
+  )
 }

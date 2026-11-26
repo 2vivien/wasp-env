@@ -48,7 +48,7 @@ export function SecurityWorkspace({ userEmail }: { userEmail: string }) {
       setDeletingAccount(false)
     }
   }
-  return <main className="wasp-dashboard"><header className="wasp-dashboard-header"><a className="wasp-wordmark" href="/dashboard">Wasp</a><nav className="wasp-dashboard-nav" aria-label="Navigation principale"><a href="/dashboard">Coffre</a><a href="/projects">Projets</a><a href="/groups">Groupes</a><a href="/shared">Partagés</a></nav><Text>Sécurité</Text></header><section className="wasp-dashboard-content"><Text className="wasp-eyebrow">CONTRÔLE DU COMPTE</Text><Heading as="h1">Sécurité et activité</Heading><Text>Gérez les appareils connectés et consultez les événements récents de votre compte.</Text>
+  return <section className="wasp-dashboard-content"><Text className="wasp-eyebrow">CONTRÔLE DU COMPTE</Text><Heading as="h1">Sécurité et activité</Heading><Text>Gérez les appareils connectés et consultez les événements récents de votre compte.</Text>
     <IdentityKeySetup />
     <SecurityBackup />
     <PrivateLinksManager />
@@ -71,5 +71,5 @@ export function SecurityWorkspace({ userEmail }: { userEmail: string }) {
       {sessions.data?.sessions.map((item) => <div className="wasp-security-row" key={item.id}><div><Text>{item.isCurrent ? 'Cet appareil · session actuelle' : item.userAgent || 'Appareil inconnu'}</Text><Text size="small">Dernière activité : {new Date(item.updatedAt).toLocaleString('fr-FR')} · expire {new Date(item.expiresAt).toLocaleDateString('fr-FR')}{item.ipAddress ? ` · ${item.ipAddress}` : ''}</Text></div>{!item.isCurrent && <Button variant="default" onClick={() => void revoke({ sessionId: item.id })}>Révoquer</Button>}</div>)}
     </section>
     <section className="wasp-vault-card" aria-labelledby="activity-title"><div><Heading as="h2" id="activity-title">Journal d’activité</Heading><Text size="small">Les noms et valeurs des secrets ne sont jamais inscrits dans ce journal.</Text></div>{activity.isLoading && <Text role="status">Chargement de l’activité…</Text>}{activity.error && <Text role="alert">Impossible de charger le journal.</Text>}{activity.data?.events.length === 0 && <Text>Aucun événement récent.</Text>}{activity.data?.events.map((event) => <div className="wasp-security-row" key={event.id}><div><Text>{event.event.replaceAll('_', ' ')}</Text><Text size="small">{event.targetKind}{event.targetId ? ` · ${event.targetId.slice(0, 8)}` : ''} · {new Date(event.createdAt).toLocaleString('fr-FR')}</Text></div></div>)}</section>
-  </section></main>
+  </section>
 }

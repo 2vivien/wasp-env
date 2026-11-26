@@ -59,8 +59,8 @@ export function EnvFileEditor({ environmentId, vaultId, name }: { environmentId:
     finally { bytes.fill(0); setBusy(false) }
   }
 
-  return <main className="wasp-dashboard"><header className="wasp-dashboard-header"><a className="wasp-wordmark" href="/projects">Wasp</a><Text>Fichier ENV</Text></header><section className="wasp-dashboard-content"><Text className="wasp-eyebrow">{name}</Text><Heading as="h1">Fichier d’environnement</Heading><Text>Le contenu reste chiffré dans votre navigateur avant d’être enregistré.</Text>
+  return <section className="wasp-dashboard-content"><Text className="wasp-eyebrow">{name}</Text><Heading as="h1">Fichier d’environnement</Heading><Text>Le contenu reste chiffré dans votre navigateur avant d’être enregistré.</Text>
     {!opened ? <Button variant="primary" disabled={busy} onClick={() => void openFile()}>{data ? 'Déverrouiller et ouvrir' : 'Créer un fichier ENV'}</Button> : <><label className="wasp-field"><span>Contenu .env</span><Textarea aria-label="Contenu du fichier .env" rows={16} value={source} onChange={(event) => setSource(event.target.value)} placeholder={'DATABASE_URL=…\nAPI_TOKEN=…'} /></label><Text size="small">{document.variableNames.length} variable(s) reconnue(s){document.duplicateNames.length ? ` · doublons : ${document.duplicateNames.join(', ')}` : ''}{document.malformedLines.length ? ` · lignes à vérifier : ${document.malformedLines.join(', ')}` : ''}</Text><div className="wasp-inline-action"><Button variant="primary" disabled={busy} onClick={() => void saveFile()}>Chiffrer et enregistrer</Button><Button disabled={busy} onClick={() => { setOpened(false); setSource('') }}>Fermer sans enregistrer</Button></div></>}
     {notice && <Text role="status">{notice}</Text>}
-  </section></main>
+  </section>
 }
