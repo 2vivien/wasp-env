@@ -1076,3 +1076,42 @@ html[data-color-mode='light'] .wasp-vault-card button[data-variant='primary'] {
   color: var(--wasp-muted);
   font-weight: 500;
 }
+
+.wasp-settings-nav {
+  display: flex;
+  gap: var(--wasp-space-4);
+  margin-bottom: var(--wasp-space-6);
+}
+
+.wasp-settings-nav a {
+  color: var(--wasp-muted);
+  text-decoration: none;
+}
+
+.wasp-settings-nav a:hover {
+  color: var(--wasp-text);
+  text-decoration: underline;
+}
+
+html[data-density='compact'] .wasp-vault-card {
+  padding: var(--wasp-space-3);
+  gap: var(--wasp-space-2);
+}
+
+html[data-density='compact'] .wasp-app-content {
+  padding-top: var(--wasp-space-4);
+}
+
+html[data-sidebar='collapsed'] .wasp-app-shell {
+  grid-template-columns: 64px minmax(0, 1fr);
+}
+
+html[data-sidebar='collapsed'] .wasp-sidebar nav a,
+html[data-sidebar='collapsed'] .wasp-sidebar-search span,
+html[data-sidebar='collapsed'] .wasp-sidebar-footer {
+  font-size: 0;
+}
+
+html[data-sidebar='collapsed'] .wasp-sidebar-search {
+  justify-content: center;
+}

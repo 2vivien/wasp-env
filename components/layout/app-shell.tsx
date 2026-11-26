@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import { Button, Text } from '@primer/react'
 import { authClient } from '@/lib/auth-client'
+import { loadPreferences } from '@/lib/preferences'
 import { lockKeyStore, broadcastVaultLock } from '@/src/crypto/key-store'
 import { CommandPalette } from './command-palette'
 import { MOBILE_ITEMS, SIDEBAR_ITEMS } from './nav-items'
@@ -40,6 +41,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const result = await authClient.signOut()
     if (!result.error) { router.replace('/'); router.refresh() }
   }, [lock, router])
+
+  useEffect(() => { loadPreferences() }, [])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
