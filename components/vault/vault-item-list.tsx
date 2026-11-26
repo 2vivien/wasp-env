@@ -18,6 +18,7 @@ import { compareFingerprints } from '@/src/crypto/value-hmac'
 import type { EncryptedVaultItem } from '@/src/crypto/vault-key'
 import type { VaultItemKind, VaultItemMetadata } from '@/src/crypto/vault-items'
 import { VaultItemEditor } from './vault-item-editor'
+import { RecipientFingerprint } from '@/components/sharing/recipient-fingerprint'
 
 type Item = { id: string; encryptedPayload: EncryptedVaultItem }
 type ItemName = {
@@ -998,6 +999,7 @@ export function VaultItemList({
                       />
                     </label>
                   )}
+                  {!shareGroupId && <RecipientFingerprint handle={shareHandle} />}
                   <div className="wasp-inline-action">
                     <Button
                       variant="primary"
