@@ -1,115 +1,81 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { Button, Text } from '@primer/react'
+import { Button, Text, Textarea } from '@primer/react'
 import { encryptVaultItemPayload } from '@/src/crypto/vault-items'
 import { parseDotenv } from '@/lib/dotenv'
 
 type ParsedFile = { filename: string; source: string; variableCount: number; duplicateNames: string[]; malformedLines: number[] }
 const MAX_ENV_FILE_BYTES = 512 * 1024
+const MAX_ENV_LINES = 1000
+
+function parse(name: string, source: string): ParsedFile {
+  const document = parseDotenv(source)
+  return {
+    filename: name,
+    source,
+    variableCount: document.variableNames.length,
+    duplicateNames: document.duplicateNames,
+    malformedLines: document.malformedLines,
+  }
+}
 
 export function VaultEnvImportForm({ vaultId, onSaved }: { vaultId: string; onSaved: () => void }) {
-  const [file, setFile] = useState<ParsedFile | null>(null)
+  const [files, setFiles] = useState<ParsedFile[]>([])
+  const [pasted, setPasted] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
-  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const selected = event.target.files?.[0]
-    if (!selected) return
+  async function handleFiles(event: React.ChangeEvent<HTMLInputElement>) {
+    const selected = [...(event.target.files ?? [])]
     setMessage('')
-    if (!/^\.env(?:\.[A-Za-z0-9._-]+)?$/.test(selected.name)) {
-      setFile(null)
-      if (inputRef.current) inputRef.current.value = ''
-      setMessage('Choisissez un fichier nommé .env ou .env.*.')
-      return
+    const parsed: ParsedFile[] = []
+    for (const file of selected) {
+      if (!/^\.env(?:\.[A-Za-z0-9._-]+)?$/.test(file.name)) { setMessage(`Nom de fichier refusé : ${file.name}`); continue }
+      if (file.size > MAX_ENV_FILE_BYTES) { setMessage(`Fichier trop volumineux : ${file.name}`); continue }
+      try {
+        const source = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(await file.arrayBuffer())
+        if (source.split(/\r\n|\r|\n/).length > MAX_ENV_LINES) { setMessage(`Trop de lignes : ${file.name}`); continue }
+        parsed.push(parse(file.name, source))
+      } catch { setMessage(`Lecture impossible : ${file.name}`) }
     }
-    if (selected.size > MAX_ENV_FILE_BYTES) {
-      setFile(null)
-      if (inputRef.current) inputRef.current.value = ''
-      setMessage('Le fichier dépasse la limite de 512 Kio du coffre chiffré.')
-      return
-    }
-
-    try {
-      const source = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(await selected.arrayBuffer())
-      const document = parseDotenv(source)
-      setFile({
-        filename: selected.name,
-        source,
-        variableCount: document.variableNames.length,
-        duplicateNames: document.duplicateNames,
-        malformedLines: document.malformedLines,
-      })
-    } catch {
-      setFile(null)
-      if (inputRef.current) inputRef.current.value = ''
-      setMessage('Impossible de lire ce fichier. Choisissez un fichier texte .env.')
-    }
+    if (parsed.length) setFiles((current) => [...current, ...parsed])
+    if (inputRef.current) inputRef.current.value = ''
   }
 
   async function handleSave() {
-    if (!file || isSaving) return
-    setIsSaving(true)
-    setMessage('')
-    const itemId = crypto.randomUUID()
-
+    const selected = [...files]
+    if (pasted.trim()) selected.push(parse('.env.pasted', pasted))
+    if (!selected.length || isSaving) return
+    setIsSaving(true); setMessage('')
     try {
-      const encryptedPayload = await encryptVaultItemPayload(
-        vaultId,
-        itemId,
-        1,
-        file.filename,
-        file.source,
-        'env-file',
-      )
-      const response = await fetch('/api/vault-items', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: itemId, vaultId, encryptedPayload }),
-      })
-      if (!response.ok) throw new Error('Import failed.')
-      setFile(null)
-      if (inputRef.current) inputRef.current.value = ''
-      setMessage('Fichier importé et chiffré dans le coffre.')
+      for (const file of selected) {
+        const itemId = crypto.randomUUID()
+        const encryptedPayload = await encryptVaultItemPayload(vaultId, itemId, 1, file.filename, file.source, 'env-file')
+        const response = await fetch('/api/vault-items', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: itemId, vaultId, encryptedPayload }),
+        })
+        if (!response.ok) throw new Error('Import failed.')
+      }
+      setFiles([]); setPasted('')
+      setMessage(`${selected.length} fichier(s) importé(s) et chiffré(s) dans le navigateur.`)
       onSaved()
-    } catch {
-      setMessage('Import impossible. Le contenu n’a pas été envoyé en clair.')
-    } finally {
-      setIsSaving(false)
-    }
+    } catch { setMessage('Import impossible. Le contenu n’a pas été envoyé en clair.') }
+    finally { setIsSaving(false) }
   }
+
+  const totalVariables = files.reduce((sum, file) => sum + file.variableCount, 0) + (parseDotenv(pasted).variableNames.length)
 
   return (
     <section className="wasp-env-import" aria-labelledby="env-import-title">
-      <div>
-        <Text className="wasp-eyebrow">VARIABLES ENV</Text>
-        <h3 id="env-import-title">Importer un fichier .env</h3>
-        <Text size="small">Le fichier complet est chiffré dans le navigateur et peut être exporté sans modifier ses octets.</Text>
-      </div>
-      <label className="wasp-field">
-        <span>Fichier .env (max. 512 Kio)</span>
-        <input ref={inputRef} type="file" accept=".env,.example,.local,.development,.production,.test,.staging,text/plain" onChange={(event) => void handleFileChange(event)} />
-      </label>
-      {file && (
-        <div className="wasp-env-preview" aria-live="polite">
-          <strong>{file.filename}</strong>
-          <Text size="small">{file.variableCount} variable(s) détectée(s) · {new TextEncoder().encode(file.source).byteLength} octets</Text>
-          {file.duplicateNames.length > 0 && <Text role="status">Clés répétées : {file.duplicateNames.join(', ')}</Text>}
-          {file.malformedLines.length > 0 && <Text role="status">Lignes à vérifier : {file.malformedLines.join(', ')}</Text>}
-          <div className="wasp-inline-action">
-            <Button variant="primary" onClick={() => void handleSave()} disabled={isSaving}>
-              {isSaving ? 'Chiffrement…' : 'Chiffrer et importer'}
-            </Button>
-            <Button variant="default" onClick={() => {
-              setFile(null)
-              if (inputRef.current) inputRef.current.value = ''
-            }} disabled={isSaving}>
-              Effacer la sélection
-            </Button>
-          </div>
-        </div>
-      )}
+      <div><Text className="wasp-eyebrow">VARIABLES ENV</Text><h3 id="env-import-title">Importer des fichiers .env</h3><Text size="small">Fichiers et texte collé sont chiffrés dans le navigateur avant envoi. Les valeurs ne sont pas affichées dans l’aperçu.</Text></div>
+      <label className="wasp-field"><span>Fichiers .env (512 Kio, 1 000 lignes maximum chacun)</span><input ref={inputRef} type="file" multiple accept=".env,.example,.local,.development,.production,.test,.staging,text/plain" onChange={(event) => void handleFiles(event)} /></label>
+      <label className="wasp-field"><span>Coller du texte .env</span><Textarea rows={4} value={pasted} onChange={(event) => setPasted(event.target.value)} placeholder={'DATABASE_URL=…\nAPI_TOKEN=…'} /></label>
+      {files.map((file) => <div className="wasp-env-preview" key={file.filename}><strong>{file.filename}</strong><Text size="small">{file.variableCount} variable(s) détectée(s){file.duplicateNames.length ? ` · doublons : ${file.duplicateNames.join(', ')}` : ''}{file.malformedLines.length ? ` · lignes à vérifier : ${file.malformedLines.join(', ')}` : ''}</Text></div>)}
+      {totalVariables > 0 && <Text size="small">{totalVariables} variable(s) au total.</Text>}
+      <div className="wasp-inline-action"><Button variant="primary" disabled={isSaving || (files.length === 0 && !pasted.trim())} onClick={() => void handleSave()}>{isSaving ? 'Chiffrement…' : 'Importer'}</Button><Button disabled={isSaving || (files.length === 0 && !pasted.trim())} onClick={() => { setFiles([]); setPasted(''); if (inputRef.current) inputRef.current.value = '' }}>Effacer</Button></div>
       {message && <Text role="status">{message}</Text>}
     </section>
   )
