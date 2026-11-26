@@ -27,6 +27,20 @@ const createVaultSchema = z.object({
   }).strict(),
 }).strict()
 
+export async function GET() {
+  const session = await getCurrentSession()
+  if (!session?.user) return jsonNoStore({ error: { code: 'AUTH_REQUIRED' } }, 401)
+
+  const rows = await db.select({
+    id: vaults.id,
+    keySalt: vaults.keySalt,
+    kdfParameters: vaults.kdfParameters,
+    createdAt: vaults.createdAt,
+    updatedAt: vaults.updatedAt,
+  }).from(vaults).where(eq(vaults.userId, session.user.id)).orderBy(vaults.updatedAt)
+  return jsonNoStore({ vaults: rows })
+}
+
 export async function POST(request: Request) {
   const session = await getCurrentSession()
   if (!session?.user) return jsonNoStore({ error: { code: 'AUTH_REQUIRED' } }, 401)
