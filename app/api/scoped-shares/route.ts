@@ -4,21 +4,24 @@ import { hasValidMutationHeaders, jsonNoStore } from '@/lib/api'
 import { getCurrentSession } from '@/lib/auth/session'
 import { db } from '@/lib/db'
 import { auditLogs, environments, profiles, projects, scopedShares, userKeyMaterial, vaultGroupMembers, vaultGroups, vaultItems } from '@/lib/db/schema'
+import { normalizeOverrides, permissionsForRole } from '@/lib/permissions'
 
 const encryptedScopeKeySchema = z.object({ v: z.literal(1), alg: z.literal('X25519-SEAL'), ct: z.string().regex(/^[A-Za-z0-9_-]{107,5500}$/) }).strict()
 const createSchema = z.object({
   vaultId: z.string().uuid(), resourceId: z.string().uuid(), resourceType: z.enum(['secret','project']), recipientHandle: z.string().trim().min(2).max(32), groupId: z.string().uuid().nullable().optional(),
   keyVersion: z.number().int().min(1), encryptedScopeKey: encryptedScopeKeySchema, expiresAt: z.string().datetime({ offset: true }).nullable().optional(),
+  role: z.enum(['viewer', 'user', 'editor', 'admin', 'owner']).default('viewer'),
+  permissions: z.record(z.string(), z.boolean()).optional(),
 }).strict()
 
 export async function GET() {
   const session = await getCurrentSession()
   if (!session?.user) return jsonNoStore({ error: { code: 'AUTH_REQUIRED' } }, 401)
   const [incoming, outgoing] = await Promise.all([
-    db.select({ id: scopedShares.id, vaultId: scopedShares.vaultId, resourceId: scopedShares.resourceId, resourceType: scopedShares.resourceType, keyVersion: scopedShares.keyVersion, encryptedScopeKey: scopedShares.encryptedScopeKey, status: scopedShares.status, expiresAt: scopedShares.expiresAt, createdAt: scopedShares.createdAt, ownerHandle: profiles.handle })
+    db.select({ id: scopedShares.id, vaultId: scopedShares.vaultId, resourceId: scopedShares.resourceId, resourceType: scopedShares.resourceType, keyVersion: scopedShares.keyVersion, permissions: scopedShares.permissions, encryptedScopeKey: scopedShares.encryptedScopeKey, status: scopedShares.status, expiresAt: scopedShares.expiresAt, createdAt: scopedShares.createdAt, ownerHandle: profiles.handle })
       .from(scopedShares).innerJoin(profiles, eq(profiles.userId, scopedShares.ownerId))
       .where(eq(scopedShares.recipientId, session.user.id)).orderBy(scopedShares.createdAt),
-    db.select({ id: scopedShares.id, vaultId: scopedShares.vaultId, resourceId: scopedShares.resourceId, resourceType: scopedShares.resourceType, keyVersion: scopedShares.keyVersion, status: scopedShares.status, expiresAt: scopedShares.expiresAt, createdAt: scopedShares.createdAt, recipientHandle: profiles.handle })
+    db.select({ id: scopedShares.id, vaultId: scopedShares.vaultId, resourceId: scopedShares.resourceId, resourceType: scopedShares.resourceType, keyVersion: scopedShares.keyVersion, permissions: scopedShares.permissions, status: scopedShares.status, expiresAt: scopedShares.expiresAt, createdAt: scopedShares.createdAt, recipientHandle: profiles.handle })
       .from(scopedShares).innerJoin(profiles, eq(profiles.userId, scopedShares.recipientId))
       .where(eq(scopedShares.ownerId, session.user.id)).orderBy(scopedShares.createdAt),
   ])
@@ -66,7 +69,13 @@ export async function POST(request: Request) {
     await tx.insert(scopedShares).values({
       id, vaultId: parsed.data.vaultId, ownerId: session.user.id, recipientId: recipient.userId,
       groupId: parsed.data.groupId ?? null, resourceType: parsed.data.resourceType, resourceId: parsed.data.resourceId,
-      encryptedScopeKey: parsed.data.encryptedScopeKey, keyVersion: parsed.data.keyVersion, permissions: { read: true }, status: 'pending', expiresAt,
+      encryptedScopeKey: parsed.data.encryptedScopeKey, keyVersion: parsed.data.keyVersion,
+      permissions: {
+        ...Object.fromEntries(permissionsForRole(parsed.data.role).map((permission) => [permission, true])),
+        ...normalizeOverrides(parsed.data.permissions),
+        view: true,
+      },
+      status: 'pending', expiresAt,
     })
     await tx.insert(auditLogs).values({ id: crypto.randomUUID(), actorId: session.user.id, vaultId: parsed.data.vaultId, event: parsed.data.resourceType === 'secret' ? 'scoped_secret_share_created' : 'scoped_project_share_created', targetKind: parsed.data.resourceType, targetId: parsed.data.resourceId })
   })
