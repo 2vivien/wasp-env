@@ -1,7 +1,6 @@
-/* Primer Primitives — design tokens (CSS custom properties).
-   These imports establish the token + theme baseline that every Primer
-   component and all of our own CSS reads from. Order matters: base + functional
-   tokens first, then the per-theme functional color sets. */
+/* Wasp tokens are the only source of visual values. Primer supplies component
+   mechanics; its functional colors are remapped to our tokens below. */
+@import '../src/styles/tokens.css';
 @import '@primer/primitives/dist/css/base/size/size.css';
 @import '@primer/primitives/dist/css/base/typography/typography.css';
 @import '@primer/primitives/dist/css/base/motion/motion.css';
@@ -17,40 +16,29 @@
 @import '@primer/primitives/dist/css/functional/themes/dark.css';
 @import '@primer/primitives/dist/css/functional/themes/dark-dimmed.css';
 
-:root {
-  --wasp-accent-dark: #a8d5ae;
-  --wasp-accent-light: #245c34;
-  --wasp-focus-dark: #b9e9c0;
-  --wasp-focus-light: #245c34;
-  --wasp-text-dark: #d2f1d7;
-  --wasp-muted-dark: #9ec9a5;
-  --wasp-text-light: #174b28;
-  --wasp-muted-light: #3f704b;
+html {
+  --bgColor-default: var(--wasp-bg);
+  --bgColor-muted: var(--wasp-surface-2);
+  --bgColor-inset: var(--wasp-surface-2);
+  --fgColor-default: var(--wasp-text);
+  --fgColor-muted: var(--wasp-muted);
+  --fgColor-accent: var(--wasp-accent);
+  --fgColor-danger: var(--wasp-danger);
+  --fgColor-success: var(--wasp-success);
+  --borderColor-default: var(--wasp-border);
+  --borderColor-accent-emphasis: var(--wasp-accent);
+  --focus-outlineColor: var(--wasp-focus);
+  --borderRadius-small: var(--wasp-radius-sm);
+  --borderRadius-medium: var(--wasp-radius-md);
 }
 
-html[data-color-mode='dark'][data-dark-theme='dark'] {
-  --fgColor-default: var(--wasp-text-dark);
-  --fgColor-muted: var(--wasp-muted-dark);
-  --fgColor-accent: var(--wasp-accent-dark);
-  --borderColor-accent-emphasis: var(--wasp-accent-dark);
-  --focus-outlineColor: var(--wasp-focus-dark);
-}
-
-html[data-color-mode='light'][data-light-theme='light'] {
-  --fgColor-default: var(--wasp-text-light);
-  --fgColor-muted: var(--wasp-muted-light);
-  --fgColor-accent: var(--wasp-accent-light);
-  --borderColor-accent-emphasis: var(--wasp-accent-light);
-  --focus-outlineColor: var(--wasp-focus-light);
-}
-
-html[data-color-mode='dark'][data-dark-theme='dark'] :is(.wasp-page, .wasp-dashboard, .wasp-login-card) {
+html[data-color-mode='dark'] :is(.wasp-page, .wasp-dashboard, .wasp-login-card) {
   --fgColor-default: var(--wasp-text-dark);
   --fgColor-muted: var(--wasp-muted-dark);
   --fgColor-accent: var(--wasp-accent-dark);
 }
 
-html[data-color-mode='light'][data-light-theme='light'] :is(.wasp-page, .wasp-dashboard, .wasp-login-card) {
+html[data-color-mode='light'] :is(.wasp-page, .wasp-dashboard, .wasp-login-card) {
   --fgColor-default: var(--wasp-text-light);
   --fgColor-muted: var(--wasp-muted-light);
   --fgColor-accent: var(--wasp-accent-light);
@@ -682,7 +670,7 @@ html[data-color-mode='light'] .wasp-vault-card button[data-variant='primary'] {
     position: absolute;
     inset: 20px auto auto 20px;
     border: 0;
-    color: #000;
+    color: var(--wasp-text-light);
   }
 }
 
