@@ -1058,3 +1058,21 @@ html[data-color-mode='light'] .wasp-vault-card button[data-variant='primary'] {
   border: var(--borderWidth-thin) solid var(--wasp-border);
   border-radius: var(--wasp-radius-sm);
 }
+
+.wasp-diff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-body-size-small);
+}
+
+.wasp-diff-table th,
+.wasp-diff-table td {
+  padding: var(--wasp-space-2);
+  border-bottom: var(--borderWidth-thin) solid var(--wasp-border);
+  text-align: left;
+}
+
+.wasp-diff-table th {
+  color: var(--wasp-muted);
+  font-weight: 500;
+}

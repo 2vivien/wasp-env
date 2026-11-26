@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { getCurrentSession } from '@/lib/auth/session'
 import { db } from '@/lib/db'
 import { environments } from '@/lib/db/schema'
+import { EnvDiff } from '@/components/projects/env-diff'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +20,7 @@ export default async function EnvPage() {
     <section>
       <Heading as="h1">Variables ENV</Heading>
       <Text>Ouvrez un environnement pour éditer son fichier chiffré.</Text>
+      <EnvDiff />
       {rows.length === 0 && <Text>Aucun environnement.</Text>}
       <ul className="wasp-environment-list">
         {rows.map((environment) => (
