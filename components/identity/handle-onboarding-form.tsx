@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, Heading, Text, TextInput } from '@primer/react'
 import { useRouter } from 'next/navigation'
 import { isValidHandle } from '@/src/modules/identity/handle'
@@ -10,11 +10,24 @@ export function HandleOnboardingForm({ next = '/dashboard' }: { next?: string })
   const [handle, setHandle] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [availability, setAvailability] = useState<'checking' | 'available' | 'taken' | null>(null)
   const isValid = isValidHandle(handle)
+
+  useEffect(() => {
+    if (!isValid) return
+    const timer = window.setTimeout(() => {
+      setAvailability('checking')
+      fetch(`/api/handles/check?h=${encodeURIComponent(handle)}`, { cache: 'no-store' })
+        .then((response) => response.ok ? response.json() as Promise<{ available: boolean }> : Promise.reject())
+        .then((result) => setAvailability(result.available ? 'available' : 'taken'))
+        .catch(() => setAvailability(null))
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [handle, isValid])
 
   async function saveHandle(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!isValid || isSaving) return
+    if (!isValid || isSaving || availability !== 'available') return
     setIsSaving(true)
     setError(null)
 
@@ -50,7 +63,11 @@ export function HandleOnboardingForm({ next = '/dashboard' }: { next?: string })
             <TextInput
               id="handle-input"
               value={handle}
-              onChange={(event) => setHandle(event.target.value.toLowerCase())}
+              onChange={(event) => {
+                const next = event.target.value.toLowerCase()
+                setHandle(next)
+                setAvailability(isValidHandle(next) ? 'checking' : null)
+              }}
               autoComplete="username"
               autoCapitalize="none"
               maxLength={20}
@@ -61,10 +78,20 @@ export function HandleOnboardingForm({ next = '/dashboard' }: { next?: string })
           </label>
           <Text id="handle-help" size="small">3 à 20 caractères, minuscules, chiffres ou _, en commençant par une lettre.</Text>
           <Text id="handle-status" role="status" size="small">
-            {handle.length === 0 ? 'Le pseudo sera visible lors du partage.' : isValid ? 'Format valide. La disponibilité est vérifiée à l’enregistrement.' : 'Format invalide ou pseudo réservé.'}
+            {handle.length === 0
+              ? 'Le pseudo sera visible lors du partage.'
+              : !isValid
+                ? 'Format invalide ou pseudo réservé.'
+                : availability === 'checking'
+                  ? 'Vérification de la disponibilité…'
+                  : availability === 'available'
+                    ? 'Disponible.'
+                    : availability === 'taken'
+                      ? 'Déjà pris.'
+                      : 'Disponibilité indisponible. Réessayez.'}
           </Text>
           {error && <Text role="alert" className="wasp-auth-error">{error}</Text>}
-          <Button type="submit" variant="primary" disabled={!isValid || isSaving}>
+          <Button type="submit" variant="primary" disabled={!isValid || isSaving || availability !== 'available'}>
             {isSaving ? 'Enregistrement…' : 'Continuer'}
           </Button>
         </form>
