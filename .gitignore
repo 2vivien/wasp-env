@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Next.js / build
+.next/
+.next-dev/
+out/
+build/
+*.tsbuildinfo
+
+# Environment files (never commit real values)
+.env
+.env.*
+!.env.example
+
+# Test / tooling artifacts
+coverage/
+playwright-report/
+test-results/
+*.log
+
+# Editor / OS
+.DS_Store
+*.swp
