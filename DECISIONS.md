@@ -18,3 +18,9 @@ The password, root, and vault keys stay in memory only. This does not replace au
 - **Choix :** palette monochrome clair/sombre inspirée de Vercel, focus bleu, densité GitHub, finition Apple (feedback immédiat, mouvements courts et interrompables). Les valeurs vivent uniquement dans `src/styles/tokens.css`.
 - **Raison :** demande explicite du propriétaire du produit ; remplace la palette verte provisoire. Les couleurs sémantiques restent distinctes et accessibles.
 - **Alternative écartée :** conserver la palette verte, jugée trop « produit-specific » pour la direction demandée.
+
+## 2026-11-26 — Journal et erreurs API
+
+- **Choix :** Pino avec liste de rédaction centralisée, identifiant de requête généré hors du logger, format d’erreur unique `{ error: { code, message, requestId } }` normalisé dans `lib/api.ts`, limites centralisées dans `lib/limits.ts`.
+- **Raison :** éviter qu’une valeur secrète, un jeton ou un e-mail fuie dans un log ou un message d’erreur ; garder un seul vocabulaire pour le client.
+- **Alternative écartée :** `console.log` et messages d’erreur spécifiques par endpoint.
