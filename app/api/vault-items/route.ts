@@ -6,27 +6,34 @@ import { db } from '@/lib/db'
 import { auditLogs, vaultItems } from '@/lib/db/schema'
 import { getVaultAccess } from '@/lib/vault-access'
 import { limitRequest } from '@/lib/rate-limit'
+import { can } from '@/lib/permissions'
 
-const encryptedBlobSchema = z.object({
-  v: z.literal(1),
-  alg: z.literal('A256GCM'),
-  nonce: z.string().min(16).max(32),
-  ct: z.string().min(24).max(850_000),
-}).strict()
+const encryptedBlobSchema = z
+  .object({
+    v: z.literal(1),
+    alg: z.literal('A256GCM'),
+    nonce: z.string().min(16).max(32),
+    ct: z.string().min(24).max(850_000),
+  })
+  .strict()
 
-const encryptedItemSchema = z.object({
-  version: z.number().int().min(1),
-  scopeKeyVersion: z.number().int().min(1).optional(),
-  scopeKeyEnvelope: encryptedBlobSchema.optional(),
-  metadata: encryptedBlobSchema,
-  value: encryptedBlobSchema,
-}).strict()
+const encryptedItemSchema = z
+  .object({
+    version: z.number().int().min(1),
+    scopeKeyVersion: z.number().int().min(1).optional(),
+    scopeKeyEnvelope: encryptedBlobSchema.optional(),
+    metadata: encryptedBlobSchema,
+    value: encryptedBlobSchema,
+  })
+  .strict()
 
-const createItemSchema = z.object({
-  id: z.string().uuid(),
-  vaultId: z.string().uuid(),
-  encryptedPayload: encryptedItemSchema,
-}).strict()
+const createItemSchema = z
+  .object({
+    id: z.string().uuid(),
+    vaultId: z.string().uuid(),
+    encryptedPayload: encryptedItemSchema,
+  })
+  .strict()
 
 export async function GET(request: Request) {
   const session = await getCurrentSession()
@@ -38,13 +45,18 @@ export async function GET(request: Request) {
   }
 
   const access = await getVaultAccess(session.user.id, vaultId)
-  if (!access) return jsonNoStore({ error: { code: 'NOT_FOUND' } }, 404)
+  if (!access || !can(access.role, 'view', access.permissions))
+    return jsonNoStore({ error: { code: 'NOT_FOUND' } }, 404)
 
-  const items = await db.select({
-    id: vaultItems.id,
-    encryptedPayload: vaultItems.encryptedPayload,
-    createdAt: vaultItems.createdAt,
-  }).from(vaultItems).where(eq(vaultItems.vaultId, vaultId)).orderBy(vaultItems.createdAt)
+  const items = await db
+    .select({
+      id: vaultItems.id,
+      encryptedPayload: vaultItems.encryptedPayload,
+      createdAt: vaultItems.createdAt,
+    })
+    .from(vaultItems)
+    .where(eq(vaultItems.vaultId, vaultId))
+    .orderBy(vaultItems.createdAt)
 
   return jsonNoStore({ items })
 }
@@ -52,8 +64,12 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await getCurrentSession()
   if (!session?.user) return jsonNoStore({ error: { code: 'AUTH_REQUIRED' } }, 401)
-  if (!hasValidMutationHeaders(request, true)) return jsonNoStore({ error: { code: 'INVALID_REQUEST' } }, 400)
-  const limit = await limitRequest(request, 'mutations', 120, 60).catch(() => ({ allowed: true, remaining: 120 }))
+  if (!hasValidMutationHeaders(request, true))
+    return jsonNoStore({ error: { code: 'INVALID_REQUEST' } }, 400)
+  const limit = await limitRequest(request, 'mutations', 120, 60).catch(() => ({
+    allowed: true,
+    remaining: 120,
+  }))
   if (!limit.allowed) return jsonNoStore({ error: { code: 'RATE_LIMITED' } }, 429)
 
   let body: unknown
@@ -71,7 +87,8 @@ export async function POST(request: Request) {
 
   const access = await getVaultAccess(session.user.id, parsed.data.vaultId)
   if (!access) return jsonNoStore({ error: { code: 'NOT_FOUND' } }, 404)
-  if (access.permission !== 'write') return jsonNoStore({ error: { code: 'FORBIDDEN' } }, 403)
+  if (!can(access.role, 'create', access.permissions))
+    return jsonNoStore({ error: { code: 'FORBIDDEN' } }, 403)
 
   await db.transaction(async (tx) => {
     await tx.insert(vaultItems).values({
@@ -80,7 +97,14 @@ export async function POST(request: Request) {
       userId: access.ownerId,
       encryptedPayload: parsed.data.encryptedPayload,
     })
-    await tx.insert(auditLogs).values({ id: crypto.randomUUID(), actorId: session.user.id, vaultId: parsed.data.vaultId, event: 'vault_item_created', targetKind: 'vault_item', targetId: parsed.data.id })
+    await tx.insert(auditLogs).values({
+      id: crypto.randomUUID(),
+      actorId: session.user.id,
+      vaultId: parsed.data.vaultId,
+      event: 'vault_item_created',
+      targetKind: 'vault_item',
+      targetId: parsed.data.id,
+    })
   })
 
   return jsonNoStore({ id: parsed.data.id }, 201)
