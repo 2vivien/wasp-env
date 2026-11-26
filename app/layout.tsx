@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { Providers } from '@/components/providers'
+import { AppShell } from '@/components/layout/app-shell'
 
 export const metadata: Metadata = {
   title: 'Wasp — Vos secrets, un seul endroit sûr',
@@ -36,7 +37,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body suppressHydrationWarning>
-        <Providers>{children}</Providers>
+        <Providers><AppShell>{children}</AppShell></Providers>
       </body>
     </html>
   )

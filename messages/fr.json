@@ -1,0 +1,27 @@
+{
+  "nav": {
+    "dashboard": "Vue générale",
+    "vaults": "Coffres",
+    "projects": "Projets",
+    "secrets": "Secrets",
+    "env": "Variables ENV",
+    "shared": "Partagés",
+    "groups": "Groupes",
+    "activity": "Activité",
+    "settings": "Réglages",
+    "security": "Sécurité",
+    "lock": "Verrouiller",
+    "signOut": "Se déconnecter",
+    "search": "Rechercher"
+  },
+  "palette": {
+    "title": "Rechercher",
+    "placeholder": "Nom, projet, action…",
+    "empty": "Aucun résultat.",
+    "locked": "Déverrouillez le coffre pour rechercher dans les métadonnées.",
+    "actions": "Actions",
+    "secrets": "Secrets",
+    "projects": "Projets",
+    "vaults": "Coffres"
+  }
+}
