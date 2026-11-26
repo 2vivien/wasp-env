@@ -5,6 +5,7 @@ import { getCurrentSession } from '@/lib/auth/session'
 import { db } from '@/lib/db'
 import { auditLogs, environments, profiles, projects, scopedShares, userKeyMaterial, vaultGroupMembers, vaultGroups, vaultItems } from '@/lib/db/schema'
 import { normalizeOverrides, permissionsForRole } from '@/lib/permissions'
+import { limitRequest } from '@/lib/rate-limit'
 
 const encryptedScopeKeySchema = z.object({ v: z.literal(1), alg: z.literal('X25519-SEAL'), ct: z.string().regex(/^[A-Za-z0-9_-]{107,5500}$/) }).strict()
 const createSchema = z.object({
@@ -32,6 +33,8 @@ export async function POST(request: Request) {
   const session = await getCurrentSession()
   if (!session?.user) return jsonNoStore({ error: { code: 'AUTH_REQUIRED' } }, 401)
   if (!hasValidMutationHeaders(request, true)) return jsonNoStore({ error: { code: 'INVALID_REQUEST' } }, 400)
+  const limit = await limitRequest(request, 'invitations', 30, 3600).catch(() => ({ allowed: true, remaining: 30 }))
+  if (!limit.allowed) return jsonNoStore({ error: { code: 'RATE_LIMITED' } }, 429)
   let body: unknown
   try { body = await request.json() } catch { return jsonNoStore({ error: { code: 'VALIDATION' } }, 422) }
   const parsed = createSchema.safeParse(body)

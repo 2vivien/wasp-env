@@ -13,6 +13,8 @@ const serverEnvironment = z.object({
   V0_DEV_APP_URL: z.string().url().optional(),
   V0_BUILD_URL: z.string().url().optional(),
   V0_SANDBOX_URL: z.string().url().optional(),
+  KV_REST_API_URL: z.string().url().optional(),
+  KV_REST_API_TOKEN: z.string().min(1).optional(),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 })
 

@@ -5,6 +5,7 @@ import { getCurrentSession } from '@/lib/auth/session'
 import { db } from '@/lib/db'
 import { auditLogs, vaultItems } from '@/lib/db/schema'
 import { getVaultAccess } from '@/lib/vault-access'
+import { limitRequest } from '@/lib/rate-limit'
 
 const encryptedBlobSchema = z.object({
   v: z.literal(1),
@@ -52,6 +53,8 @@ export async function POST(request: Request) {
   const session = await getCurrentSession()
   if (!session?.user) return jsonNoStore({ error: { code: 'AUTH_REQUIRED' } }, 401)
   if (!hasValidMutationHeaders(request, true)) return jsonNoStore({ error: { code: 'INVALID_REQUEST' } }, 400)
+  const limit = await limitRequest(request, 'mutations', 120, 60).catch(() => ({ allowed: true, remaining: 120 }))
+  if (!limit.allowed) return jsonNoStore({ error: { code: 'RATE_LIMITED' } }, 429)
 
   let body: unknown
   try {
