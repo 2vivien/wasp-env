@@ -25,9 +25,12 @@
     "*.{css,json,md,yml,yaml}": "prettier --write"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
     "@primer/octicons-react": "^19.28.1",
     "@primer/primitives": "^11.9.0",
     "@primer/react": "^38.27.0",
+    "@tanstack/react-virtual": "^3.14.28",
     "better-auth": "^1.7.28",
     "drizzle-orm": "^0.45.4",
     "libsodium-wrappers-sumo": "^0.8.4",

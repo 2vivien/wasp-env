@@ -1,6 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { Heading, Text } from '@primer/react'
 import { parseDotenv } from '@/lib/dotenv'
 import { decryptObjectName } from '@/lib/client/metadata'
@@ -52,6 +62,18 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
   const [columns, setColumns] = useState<Column[]>([])
   const [vaultId, setVaultId] = useState('')
   const [notice, setNotice] = useState('')
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over) return
+    const data = active.data.current as { sourceId?: string; card?: BoardCard } | undefined
+    if (!data?.sourceId || !data.card) return
+    void transfer(data.sourceId, String(over.id), data.card, 'copy')
+  }
 
   useEffect(() => {
     let active = true
@@ -176,21 +198,22 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
           {notice}
         </Text>
       )}
-      <div className="wasp-board">
-        {columns.map((column) => (
-          <BoardColumn
-            key={column.id}
-            id={column.id}
-            name={column.name}
-            cards={column.cards}
-            targets={columns.map(({ id, name }) => ({ id, name }))}
-            onDrop={(sourceId, targetId, card, mode) =>
-              void transfer(sourceId, targetId, card, mode)
-            }
-            onMove={(targetId, card, mode) => void transfer(column.id, targetId, card, mode)}
-          />
-        ))}
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <div className="wasp-board" aria-live="polite">
+          {columns.map((column) => (
+            <BoardColumn
+              key={column.id}
+              id={column.id}
+              name={column.name}
+              cards={column.cards}
+              targets={columns.map(({ id, name }) => ({ id, name }))}
+              onMove={(sourceId, targetId, card, mode) =>
+                void transfer(sourceId, targetId, card, mode)
+              }
+            />
+          ))}
+        </div>
+      </DndContext>
     </section>
   )
 }
