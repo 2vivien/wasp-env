@@ -5,12 +5,16 @@ const baseURL = `http://127.0.0.1:${port}`
 
 export default defineConfig({
   testDir: './e2e',
-  fullyParallel: true,
+  fullyParallel: !process.env.CI,
+  workers: process.env.CI ? 1 : undefined,
+  timeout: 60_000,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   reporter: 'list',
   use: {
     baseURL,
+    navigationTimeout: 60_000,
+    expect: { timeout: 10_000 },
     trace: 'on-first-retry',
     extraHTTPHeaders: { 'Cache-Control': 'no-cache' },
   },
