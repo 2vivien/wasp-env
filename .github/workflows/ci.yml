@@ -51,6 +51,6 @@ jobs:
       - run: pnpm test:e2e
         env:
           CI: true
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
