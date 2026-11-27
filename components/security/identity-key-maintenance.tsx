@@ -11,7 +11,8 @@ async function fetchMaterial(url: string): Promise<Material | null> {
   const response = await fetch(url, { cache: 'no-store' })
   if (response.status === 404) return null
   if (!response.ok) throw new Error('Chargement impossible')
-  return response.json() as Promise<Material>
+  const body = (await response.json()) as Material & { configured?: boolean }
+  return body.configured === false ? null : body
 }
 
 export function IdentityKeyMaintenance() {
