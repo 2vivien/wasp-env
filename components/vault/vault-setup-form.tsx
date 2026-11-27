@@ -24,7 +24,7 @@ export function VaultSetupForm({ onCreated }: { onCreated: (vault: VaultRecord) 
     [pending],
   )
 
-  const strength = estimatePassphraseStrength(passphrase).label
+  const strength = estimatePassphraseStrength(passphrase)
 
   function handleGenerate() {
     const value = generatePassphrase()
@@ -43,6 +43,12 @@ export function VaultSetupForm({ onCreated }: { onCreated: (vault: VaultRecord) 
       passphrase !== confirmation
     ) {
       setError('Choisissez une phrase de 12 à 256 caractères et vérifiez qu’elle correspond.')
+      return
+    }
+    if (strength.score < 3) {
+      setError(
+        'Cette phrase est trop faible. Utilisez la génération locale ou une phrase plus longue.',
+      )
       return
     }
 
@@ -238,7 +244,7 @@ export function VaultSetupForm({ onCreated }: { onCreated: (vault: VaultRecord) 
           </div>
         )}
         <Text size="small" role="status">
-          Force estimée : {strength}
+          Force estimée : {strength.label}
         </Text>
         <div className="wasp-security-note">
           Votre phrase ne quitte jamais cet appareil. Utilisez une phrase longue et unique.
@@ -251,7 +257,9 @@ export function VaultSetupForm({ onCreated }: { onCreated: (vault: VaultRecord) 
         <Button
           type="submit"
           variant="primary"
-          disabled={isWorking || passphrase.length < 12 || passphrase !== confirmation}
+          disabled={
+            isWorking || passphrase.length < 12 || passphrase !== confirmation || strength.score < 3
+          }
         >
           {isWorking ? 'Dérivation de la clé…' : 'Créer le coffre'}
         </Button>
