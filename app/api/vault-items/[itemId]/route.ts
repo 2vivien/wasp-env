@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { jsonNoStore, hasValidMutationHeaders } from '@/lib/api'
 import { getCurrentSession } from '@/lib/auth/session'
 import { db } from '@/lib/db'
-import { auditLogs, vaultItems } from '@/lib/db/schema'
+import { auditLogs, vaultItemVersions, vaultItems } from '@/lib/db/schema'
+import { previousVersionRow } from '@/lib/vault-item-versions'
 import { getVaultAccess } from '@/lib/vault-access'
 import { can } from '@/lib/permissions'
 
@@ -86,6 +87,20 @@ export async function PUT(request: Request, { params }: RouteContext) {
   ].slice(-49)
 
   const updated = await db.transaction(async (tx) => {
+    await tx
+      .insert(vaultItemVersions)
+      .values(
+        previousVersionRow({
+          itemId,
+          vaultId: parsed.data.vaultId,
+          userId: access.ownerId,
+          version: current.encryptedPayload.version,
+          metadata: current.encryptedPayload.metadata,
+          value: current.encryptedPayload.value,
+          updatedAt: current.updatedAt,
+        }),
+      )
+      .onConflictDoNothing()
     const rows = await tx
       .update(vaultItems)
       .set({

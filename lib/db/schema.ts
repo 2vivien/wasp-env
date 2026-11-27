@@ -188,6 +188,25 @@ export const vaultItems = pgTable(
   (table) => [index('vault_items_user_vault_idx').on(table.userId, table.vaultId)],
 )
 
+export const vaultItemVersions = pgTable(
+  'vault_item_versions',
+  {
+    itemId: text('itemId')
+      .notNull()
+      .references(() => vaultItems.id, { onDelete: 'cascade' }),
+    vaultId: text('vaultId').notNull(),
+    userId: text('userId').notNull(),
+    version: integer('version').notNull(),
+    metadata: jsonb('metadata').notNull(),
+    value: jsonb('value').notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex('vault_item_versions_item_version_unique').on(table.itemId, table.version),
+    index('vault_item_versions_item_desc_idx').on(table.itemId, table.version),
+  ],
+)
+
 export const userKeyMaterial = pgTable('user_key_material', {
   userId: text('userId')
     .primaryKey()
