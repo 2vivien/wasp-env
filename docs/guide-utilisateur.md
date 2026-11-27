@@ -6,7 +6,7 @@ Wasp conserve des secrets chiffrés dans le navigateur avant leur envoi. Le comp
 
 1. Ouvrir l’application et choisir **Continuer avec Google**.
 2. Choisir un pseudo public unique. L’adresse Google ne sert pas d’identifiant de partage.
-3. Créer un coffre avec une phrase secrète et conserver hors ligne la clé de récupération affichée une seule fois.
+3. Créer un coffre avec une phrase secrète : vous pouvez la saisir vous-même ou utiliser « Générer une phrase forte », qui la tire dans votre navigateur sans l'envoyer à Wasp. Conserver hors ligne la clé de récupération affichée une seule fois.
 4. Déverrouiller le coffre avec la phrase secrète. La clé reste en mémoire dans l’onglet ; verrouiller le coffre ou se déconnecter quand l’appareil n’est plus utilisé.
 
 La perte simultanée de la phrase secrète et de la clé de récupération rend les données chiffrées irrécupérables.
