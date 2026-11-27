@@ -36,7 +36,7 @@ Commandes qualité : `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`.
 
 ## Périmètre restant
 
-Voir `docs/etat-fonctionnel.md` et `docs/13-FEUILLE-DE-ROUTE.md`. Les points livrés récemment : e-mail Google vérifié, pseudo modifiable 1×/30 j, journal de progression de rotation, historique des versions en table immuable, tests IDOR, fuzz de non-fuite (1 000 opérations), contrôle axe des états publics, virtualisation des longues listes et rotation de projet après révocation. Restent notamment ouverts : couverture 95 %, budgets de performance, RLS, axe sur les pages authentifiées, audit externe et facturation GitHub Actions.
+Voir `docs/etat-fonctionnel.md` et `docs/13-FEUILLE-DE-ROUTE.md`. Les points livrés récemment : e-mail Google vérifié, pseudo modifiable 1×/30 j, journal de progression de rotation, historique des versions en table immuable, tests IDOR, fuzz de non-fuite (1 000 opérations), contrôle axe des états publics, virtualisation des longues listes et rotation de projet après révocation. Restent notamment ouverts : virtualisation du textarea ENV brut, RLS, audit externe, facturation GitHub Actions et la cible de 120 Ko de JS initial.
 
 ## Avertissement
 
