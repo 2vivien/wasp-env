@@ -15,6 +15,13 @@
       "when": 1795700335901,
       "tag": "0001_vault_members_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795722631994,
+      "tag": "0002_env_file_versions",
+      "breakpoints": true
     }
   ]
 }

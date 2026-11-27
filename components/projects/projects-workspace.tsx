@@ -14,6 +14,7 @@ import {
 } from '@/src/crypto/aead'
 import { sealDataForMember } from '@/src/crypto/keys'
 import { withKey } from '@/src/crypto/key-store'
+import { RecipientFingerprint } from '@/components/sharing/recipient-fingerprint'
 
 type Blob = { v: 1; alg: 'A256GCM'; nonce: string; ct: string }
 type ProjectRow = { id: string; vaultId: string; encryptedMetadata: Blob; updatedAt: string }
@@ -548,6 +549,7 @@ export function ProjectsWorkspace({ vaults }: { vaults: Array<{ id: string }> })
                   />
                 </label>
               )}
+              {!shareGroupId && <RecipientFingerprint handle={shareHandle} />}
               <div className="wasp-inline-action">
                 <Button
                   variant="primary"

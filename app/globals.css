@@ -1172,3 +1172,22 @@ html[data-sidebar='collapsed'] .wasp-sidebar-search {
 .wasp-board-card .wasp-inline-action {
   flex-wrap: wrap;
 }
+
+.wasp-board-column-scroll {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 60vh;
+}
+
+.wasp-board-column.is-over {
+  border-color: var(--wasp-focus);
+}
+
+.wasp-board-card.is-dragging {
+  opacity: 0.7;
+  will-change: transform;
+}
+
+.wasp-board-card .wasp-inline-action button {
+  min-height: 32px;
+}
