@@ -29,6 +29,12 @@ const REDACTED_PATHS = [
   '*.recoveryKey',
   '*.accessCode',
   '*.email',
+  '*.authorization',
+  '*.cookie',
+  '*.fragment',
+  '*.encryptedPayload',
+  '*.encryptedValue',
+  '*.encryptedMetadata',
 ]
 
 export function createLogger(destination?: DestinationStream) {
