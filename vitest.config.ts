@@ -12,6 +12,27 @@ export default defineConfig({
   },
   test: {
     exclude: ['e2e/**', 'node_modules/**', 'dist/**', '.next/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      include: [
+        'src/crypto/**/*.ts',
+        'src/modules/**/*.ts',
+        'lib/permissions.ts',
+        'lib/dotenv.ts',
+        'lib/logger.ts',
+        'lib/api.ts',
+        'lib/rate-limit.ts',
+      ],
+      exclude: ['**/*.test.ts', '**/*.spec.ts'],
+      thresholds: {
+        lines: 80,
+        statements: 80,
+        'src/crypto/**': { lines: 95, functions: 95 },
+        'lib/permissions.ts': { lines: 95 },
+        'lib/dotenv.ts': { lines: 95 },
+      },
+    },
     env: {
       DATABASE_URL:
         process.env.DATABASE_URL ??

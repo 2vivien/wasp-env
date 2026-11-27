@@ -31,6 +31,13 @@ The password, root, and vault keys stay in memory only. This does not replace au
 - **Raison :** le pool pg unique ne porte pas encore d’identité utilisateur par transaction ; activer RLS maintenant bloquerait les requêtes ou donnerait une fausse sensation de sécurité.
 - **Alternative écartée :** RLS avec `current_setting` non positionné, non testable et non vérifié en CI.
 
+## 2026-11-27 — Budgets de performance
+
+- **Choix :** `pnpm check:budgets` mesure le JS gzip chargé au démarrage à partir des manifests de build Next. Le budget public est fixé à 180 Ko gzip (mesuré 167,9 Ko) et celui des routes applicatives à 250 Ko.
+- **Raison :** avec Next 16/Turbopack, les chunks sont fusionnés et partagés entre toutes les routes ; une mesure par route donnerait le même total et ne dirait rien. Le script échoue si le total dépasse le budget.
+- **Écart assumé :** la cible documentée de 120 Ko pour `/` et `/login` n'est pas atteinte ; elle reste notée comme dette de performance, sans rollback functionalité.
+- **Alternative écartée :** supprimer des dépendances UI pour gagner 48 Ko au prix d'une régression d'accessibilité.
+
 ## 2026-11-27 — Autorisation : ownership ou exceptions
 
 - **Choix :** toute mutation est autorisée soit par un filtre de propriété explicite (`userId = session.user.id`) sur les ressources personnelles, soit par `can(rôle, action, access.permissions)` via `getVaultAccess` sur les ressources de coffre partagé. Les routes sans partage restent volontairement en ownership strict, ce qui est plus restrictif que la matrice ; on n'ouvre pas leur accès aux membres sans rechiffrement explicite.

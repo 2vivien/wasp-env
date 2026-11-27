@@ -5,7 +5,7 @@ import nextTypescript from 'eslint-config-next/typescript'
 export default defineConfig([
   ...nextVitals,
   ...nextTypescript,
-  globalIgnores(['.next/**', 'out/**', 'build/**', 'next-env.d.ts']),
+  globalIgnores(['.next/**', 'out/**', 'build/**', 'coverage/**', 'test-results/**', 'next-env.d.ts']),
   {
     files: ['app/**/*.tsx', 'components/**/*.tsx'],
     ignores: ['app/layout.tsx'],

@@ -38,7 +38,7 @@ function mutation(method: 'DELETE' | 'POST', body?: unknown): Request {
 }
 
 const databaseUrl = process.env.DATABASE_URL ?? ''
-const hasLiveDatabase = databaseUrl.length > 0 && !databaseUrl.includes('127.0.0.1')
+const hasLiveDatabase = databaseUrl.length > 0 && !databaseUrl.includes('user:password@127.0.0.1')
 
 describe.skipIf(!hasLiveDatabase)('rotation de projet après révocation', () => {
   beforeAll(async () => {
