@@ -30,6 +30,7 @@ type ItemName = {
   item: Item
 }
 type EditingItem = ItemName & { value: string }
+type VersionRow = NonNullable<EncryptedVaultItem['history']>[number]
 type ShareGroup = {
   id: string
   name: string
@@ -79,6 +80,7 @@ export function VaultItemList({
   const [hasError, setHasError] = useState(false)
   const [query, setQuery] = useState('')
   const [historyItemId, setHistoryItemId] = useState<string | null>(null)
+  const [versionsById, setVersionsById] = useState<Record<string, VersionRow[]>>({})
   const [showArchived, setShowArchived] = useState(false)
   const [diffNotice, setDiffNotice] = useState('')
   const [createdLink, setCreatedLink] = useState<{
@@ -710,6 +712,17 @@ export function VaultItemList({
     }
   }
 
+  async function loadVersions(id: string) {
+    try {
+      const response = await fetch(`/api/vault-items/${id}/versions`, { cache: 'no-store' })
+      if (!response.ok) return
+      const result = (await response.json()) as { versions: VersionRow[] }
+      setVersionsById((current) => ({ ...current, [id]: [...result.versions].reverse() }))
+    } catch {
+      // L'historique du payload reste disponible en repli hors ligne.
+    }
+  }
+
   const filteredNames = names.filter(
     ({ name, meta }) =>
       (!meta.archivedAt || showArchived) &&
@@ -805,6 +818,7 @@ export function VaultItemList({
               const entry = filteredNames[virtualRow.index]
               if (!entry) return null
               const { id, name, kind, meta, item } = entry
+              const history = versionsById[id] ?? item.encryptedPayload.history ?? []
               return (
                 <div
                   key={id}
@@ -1110,49 +1124,48 @@ export function VaultItemList({
                             </div>
                           </div>
                         )}
-                        {canWrite && (item.encryptedPayload.history?.length ?? 0) > 0 && (
+                        {canWrite && history.length > 0 && (
                           <div className="wasp-version-history">
                             <Button
                               variant="invisible"
                               aria-expanded={historyItemId === id}
-                              onClick={() => setHistoryItemId(historyItemId === id ? null : id)}
+                              onClick={() => {
+                                const next = historyItemId === id ? null : id
+                                setHistoryItemId(next)
+                                if (next) void loadVersions(id)
+                              }}
                             >
-                              Versions précédentes ({item.encryptedPayload.history?.length})
+                              Versions précédentes ({history.length})
                             </Button>
                             {historyItemId === id && (
                               <ul aria-label={`Versions précédentes de ${name}`}>
-                                {[...(item.encryptedPayload.history ?? [])]
-                                  .reverse()
-                                  .map((revision) => (
-                                    <li key={`${id}-${revision.version}`}>
-                                      <Text size="small">
-                                        Version {revision.version} ·{' '}
-                                        {new Date(revision.createdAt).toLocaleString('fr-FR')}
-                                      </Text>
-                                      <Button
-                                        variant="invisible"
-                                        onClick={() =>
-                                          void compareRevision(
-                                            { id, name, kind, meta, item },
-                                            revision,
-                                          )
-                                        }
-                                      >
-                                        Comparer
-                                      </Button>
-                                      <Button
-                                        variant="default"
-                                        onClick={() =>
-                                          void handleRestore(
-                                            { id, name, kind, meta, item },
-                                            revision,
-                                          )
-                                        }
-                                      >
-                                        Restaurer
-                                      </Button>
-                                    </li>
-                                  ))}
+                                {[...history].reverse().map((revision) => (
+                                  <li key={`${id}-${revision.version}`}>
+                                    <Text size="small">
+                                      Version {revision.version} ·{' '}
+                                      {new Date(revision.createdAt).toLocaleString('fr-FR')}
+                                    </Text>
+                                    <Button
+                                      variant="invisible"
+                                      onClick={() =>
+                                        void compareRevision(
+                                          { id, name, kind, meta, item },
+                                          revision,
+                                        )
+                                      }
+                                    >
+                                      Comparer
+                                    </Button>
+                                    <Button
+                                      variant="default"
+                                      onClick={() =>
+                                        void handleRestore({ id, name, kind, meta, item }, revision)
+                                      }
+                                    >
+                                      Restaurer
+                                    </Button>
+                                  </li>
+                                ))}
                               </ul>
                             )}
                           </div>
