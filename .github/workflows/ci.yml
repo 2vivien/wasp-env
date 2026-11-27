@@ -30,8 +30,6 @@ jobs:
       BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL_TEST || 'http://127.0.0.1:3100' }}
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID_TEST || 'dummy-client' }}
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET_TEST || 'dummy-secret' }}
-      KV_REST_API_URL: ${{ secrets.KV_REST_API_URL_TEST || 'http://127.0.0.1:6379' }}
-      KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN_TEST || 'dummy-kv-token' }}
 
     steps:
       - uses: actions/checkout@v7
@@ -48,6 +46,9 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test:coverage
       - run: pnpm build
+        env:
+          KV_REST_API_URL: ${{ secrets.KV_REST_API_URL_TEST || 'http://127.0.0.1:6379' }}
+          KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN_TEST || 'dummy-kv-token' }}
       - run: pnpm check:budgets
       - run: pnpm audit --audit-level high
       - run: pnpm exec playwright install --with-deps chromium
