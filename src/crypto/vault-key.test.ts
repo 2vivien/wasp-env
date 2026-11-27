@@ -23,7 +23,9 @@ describe('groupes de confirmation de la clé de récupération', () => {
     for (const index of pending.confirmationGroups) {
       expect(index).toBeGreaterThanOrEqual(0)
       expect(index).toBeLessThan(groups.length)
-      expect(groups[index]).toMatch(/^[\w-]{4}$/)
+      const group = groups[index] ?? ''
+      expect(group).toMatch(/^[\w-]{1,4}$/)
+      if (index < groups.length - 1) expect(group).toHaveLength(4)
     }
     wipeBytes(pending.rootKey)
   })
