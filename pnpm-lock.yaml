@@ -23,8 +23,8 @@ importers:
         specifier: ^11.10.0
         version: 11.10.0
       '@primer/react':
-        specifier: ^38.27.0
-        version: 38.27.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)
+        specifier: ^38.46.0
+        version: 38.47.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)
       '@tanstack/react-virtual':
         specifier: ^3.14.28
         version: 3.14.28(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -744,12 +744,6 @@ packages:
         integrity: sha512-L/2r0DNR/rMbmHWcsdmhtOiy2gESoGOhItNFD4zJ3nZfHl79Dx3N18Vfx/pYr2lruMOdk1cJZb4wEumm+Dxm1w==,
       }
 
-  '@github/tab-container-element@4.8.2':
-    resolution:
-      {
-        integrity: sha512-WkaM4mfs8x7dXRWEaDb5deC0OhH6sGQ5cw8i/sVw25gikl4f8C7mHj0kihL5k3eKIIqmGT1Fdswdoi+9ZLDpRA==,
-      }
-
   '@humanfs/core@0.19.2':
     resolution:
       {
@@ -1217,10 +1211,10 @@ packages:
       }
     engines: { node: '>=12.4.0' }
 
-  '@oddbird/popover-polyfill@0.5.2':
+  '@oddbird/popover-polyfill@0.7.3':
     resolution:
       {
-        integrity: sha512-iFrvar5SOMtKFOSjYvs4z9UlLqDdJbMx0mgISLcPedv+g0ac5sgeETLGtipHCVIae6HJPclNEH5aCyD1RZaEHw==,
+        integrity: sha512-uOY7RLqS1M12u+EzZHQ8vPSh3NjwDlb4qwJ1WDzQ0inZ14+47Vv0NNs+1Lh4PtX1nLiiCbfJyIxPRHsgBTvhvg==,
       }
 
   '@oxc-project/types@0.156.0':
@@ -1249,10 +1243,10 @@ packages:
         integrity: sha512-cxxWDeR5IE7vdL0Ca0RAAAuPVrU+Bo8CSP1WfawGo4rEP1sZTi7hwl5i7TT0jCTCR0C9IfnQBfSPAkz0oznxUw==,
       }
 
-  '@primer/live-region-element@0.8.0':
+  '@primer/live-region-element@0.8.2':
     resolution:
       {
-        integrity: sha512-DIp04IeZvZ+gwCUcBchIvRwJA2PikP/6hnFhcLKgwttcg5OYjBH9t0cZjLnv10Aq1jN0rAFFG+WPMd3bw4hXcA==,
+        integrity: sha512-eVEw6wSpLSaJqMrSQkX7RtZVZ3OTfZmsurFjM8Uj8YrJUGeWTrd2aMtWyhTAt0iKBqRbp+Z3sKxJL9MM3IVDLw==,
       }
 
   '@primer/octicons-react@19.28.1':
@@ -1270,10 +1264,10 @@ packages:
         integrity: sha512-ihZxIst4Izry284StKFjpbYvX6R/IBFTLu+qiuAmR93PsKF2hdjoabhSYwKI8iCxOUx94jVP55bI3NoY7STjYQ==,
       }
 
-  '@primer/react@38.27.0':
+  '@primer/react@38.47.0':
     resolution:
       {
-        integrity: sha512-hcXxdAXgU1gR2/LFr220isHHMb6dyuBNFx5w76lGdGx7hEcFA4LfsFXp9l/s56A4QRcexXiun8i8CqMkYnF5lw==,
+        integrity: sha512-UsEjfKaCReJOUgXiR3Wq+hlqSXP8CQR2q0Hp0TP3Inw9hK9HOucnwx9s57XCteFemFY53MHb8GgC7KCK+j++6A==,
       }
     engines: { node: '>=12', npm: '>=7' }
     peerDependencies:
@@ -3055,12 +3049,6 @@ packages:
         integrity: sha512-ZqaKwjjrAYUYfLG+htGaIIZ4nioX2L70ZUMIFysS3xvBsSG4x/n1V6TXV3N8ZYNuFGlDirFg32T7B6WOUPDYcQ==,
       }
 
-  hsluv@1.0.1:
-    resolution:
-      {
-        integrity: sha512-zCaFTiDqBLQjCCFBu0qg7z9ASYPd+Bxx2GDCVZJsnehjK80S+jByqhuFz0pCd2Aw3FSKr18AWbRlwnKR0YdizQ==,
-      }
-
   husky@9.1.7:
     resolution:
       {
@@ -4081,14 +4069,6 @@ packages:
         integrity: sha512-tYC1Q1hgyRuHgloV/YXs2w15unPVh8qfu/qCTfhTYamaw7fyhumKa2yGpdSo87vY32rIclj+4fWYQXUMs9EHvg==,
       }
 
-  react-compiler-runtime@1.0.0:
-    resolution:
-      {
-        integrity: sha512-rRfjYv66HlG8896yPUDONgKzG5BxZD1nV9U6rkm+7VCuvQc903C4MjcoZR4zPw53IKSOX9wMQVpA1IAbRtzQ7w==,
-      }
-    peerDependencies:
-      react: ^17.0.0 || ^18.0.0 || ^19.0.0 || ^0.0.0-experimental
-
   react-dom@19.2.7:
     resolution:
       {
@@ -4096,18 +4076,6 @@ packages:
       }
     peerDependencies:
       react: ^19.2.7
-
-  react-intersection-observer@9.16.0:
-    resolution:
-      {
-        integrity: sha512-w9nJSEp+DrW9KmQmeWHQyfaP6b03v+TdXynaoA964Wxt7mdR3An11z4NNCQgL4gKSK7y1ver2Fq+JKH6CWEzUA==,
-      }
-    peerDependencies:
-      react: ^17.0.0 || ^18.0.0 || ^19.0.0
-      react-dom: ^17.0.0 || ^18.0.0 || ^19.0.0
-    peerDependenciesMeta:
-      react-dom:
-        optional: true
 
   react-is@16.13.1:
     resolution:
@@ -5264,8 +5232,6 @@ snapshots:
 
   '@github/relative-time-element@5.0.0': {}
 
-  '@github/tab-container-element@4.8.2': {}
-
   '@humanfs/core@0.19.2':
     dependencies:
       '@humanfs/types': 0.15.0
@@ -5472,7 +5438,7 @@ snapshots:
 
   '@nolyfill/is-core-module@1.0.39': {}
 
-  '@oddbird/popover-polyfill@0.5.2': {}
+  '@oddbird/popover-polyfill@0.7.3': {}
 
   '@oxc-project/types@0.156.0': {}
 
@@ -5484,7 +5450,7 @@ snapshots:
 
   '@primer/behaviors@1.10.3': {}
 
-  '@primer/live-region-element@0.8.0':
+  '@primer/live-region-element@0.8.2':
     dependencies:
       '@lit-labs/ssr-dom-shim': 1.6.0
 
@@ -5494,15 +5460,14 @@ snapshots:
 
   '@primer/primitives@11.10.0': {}
 
-  '@primer/react@38.27.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)':
+  '@primer/react@38.47.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)':
     dependencies:
       '@github/mini-throttle': 2.1.1
       '@github/relative-time-element': 5.0.0
-      '@github/tab-container-element': 4.8.2
       '@lit-labs/react': 1.2.1
-      '@oddbird/popover-polyfill': 0.5.2
+      '@oddbird/popover-polyfill': 0.7.3
       '@primer/behaviors': 1.10.3
-      '@primer/live-region-element': 0.8.0
+      '@primer/live-region-element': 0.8.2
       '@primer/octicons-react': 19.28.1(react@19.2.7)
       '@primer/primitives': 11.10.0
       '@tanstack/react-virtual': 3.14.28(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -5511,13 +5476,10 @@ snapshots:
       deepmerge: 4.3.1
       focus-visible: 5.2.1
       history: 5.3.0
-      hsluv: 1.0.1
       lodash.isempty: 4.4.0
       lodash.isobject: 3.0.2
       react: 19.2.7
-      react-compiler-runtime: 1.0.0(react@19.2.7)
       react-dom: 19.2.7(react@19.2.7)
-      react-intersection-observer: 9.16.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       react-is: 19.2.7
     optionalDependencies:
       '@types/react': 19.2.17
@@ -6636,8 +6598,6 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.29.7
 
-  hsluv@1.0.1: {}
-
   husky@9.1.7: {}
 
   ignore@5.3.2: {}
@@ -7195,20 +7155,10 @@ snapshots:
 
   quick-format-unescaped@4.0.4: {}
 
-  react-compiler-runtime@1.0.0(react@19.2.7):
-    dependencies:
-      react: 19.2.7
-
   react-dom@19.2.7(react@19.2.7):
     dependencies:
       react: 19.2.7
       scheduler: 0.27.0
-
-  react-intersection-observer@9.16.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
-    dependencies:
-      react: 19.2.7
-    optionalDependencies:
-      react-dom: 19.2.7(react@19.2.7)
 
   react-is@16.13.1: {}
 
