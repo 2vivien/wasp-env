@@ -36,7 +36,7 @@ Commandes qualité : `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`.
 
 ## Périmètre restant
 
-Voir `docs/etat-fonctionnel.md` et `docs/13-FEUILLE-DE-ROUTE.md`. Les principaux points ouverts sont la rotation réelle des blobs pilotée par l’UI, les champs spécifiques par catégorie, le déplacement de secrets entre coffres, l’historique ENV complet, les empreintes publiques/TOFU, la couverture E2E/IDOR/a11y et l’audit externe.
+Voir `docs/etat-fonctionnel.md` et `docs/13-FEUILLE-DE-ROUTE.md`. Les points livrés récemment : e-mail Google vérifié, pseudo modifiable 1×/30 j, journal de progression de rotation, historique des versions en table immuable, tests IDOR, fuzz de non-fuite (1 000 opérations) et contrôle axe des pages publiques. Restent notamment ouverts : virtualisation de la liste complète des secrets et de l'éditeur brut, rotation de projet après révocation, application exhaustive des exceptions côté API, couverture axe complète et audit externe.
 
 ## Avertissement
 
