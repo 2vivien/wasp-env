@@ -234,6 +234,7 @@ export const projects = pgTable(
       .notNull()
       .references(() => vaults.id, { onDelete: 'cascade' }),
     encryptedMetadata: jsonb('encryptedMetadata').notNull(),
+    version: integer('version').notNull().default(1),
     position: integer('position').notNull().default(0),
     archivedAt: timestamp('archivedAt', { withTimezone: true }),
     deletedAt: timestamp('deletedAt', { withTimezone: true }),
