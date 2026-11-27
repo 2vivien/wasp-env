@@ -7,13 +7,27 @@ import {
   unlockVaultKey,
 } from './vault-key'
 
+import { wipeBytes } from './encoding'
+
 describe('groupes de confirmation de la clé de récupération', () => {
   it('découpe la clé en groupes de quatre et gère une chaîne vide', () => {
     expect(recoveryGroups('')).toEqual([])
     expect(recoveryGroups('abcd1234efgh')).toEqual(['abcd', '1234', 'efgh'])
   })
+
+  it('demande trois groupes distincts appartenant à la clé affichée', async () => {
+    const pending = await createPendingVaultKey('a sufficiently long test passphrase')
+    const groups = recoveryGroups(pending.recoveryKey)
+    expect(pending.confirmationGroups).toHaveLength(3)
+    expect(new Set(pending.confirmationGroups).size).toBe(3)
+    for (const index of pending.confirmationGroups) {
+      expect(index).toBeGreaterThanOrEqual(0)
+      expect(index).toBeLessThan(groups.length)
+      expect(groups[index]).toMatch(/^[\w-]{4}$/)
+    }
+    wipeBytes(pending.rootKey)
+  })
 })
-import { wipeBytes } from './encoding'
 
 describe('vault key envelopes', () => {
   it('opens the same account key with the passphrase or recovery key', async () => {

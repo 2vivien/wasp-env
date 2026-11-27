@@ -110,6 +110,13 @@ export function VaultSetupForm({ onCreated }: { onCreated: (vault: VaultRecord) 
     }
   }
 
+  function handleRestart() {
+    if (pending) wipeBytes(pending.rootKey)
+    setPending(null)
+    setAnswers(['', '', ''])
+    setError(null)
+  }
+
   function copyRecoveryKey() {
     if (!pending) return
     void navigator.clipboard.writeText(recoveryGroups(pending.recoveryKey).join(' '))
@@ -143,9 +150,11 @@ export function VaultSetupForm({ onCreated }: { onCreated: (vault: VaultRecord) 
           Elle ne sera plus affichée après cette étape. Sans phrase secrète ni cette clé, le coffre
           est irrécupérable.
         </Text>
-        <code className="wasp-recovery-key" aria-label="Clé de récupération">
+        <code className="wasp-recovery-key" aria-label="Clé de récupération numérotée">
           {groups.map((group, index) => (
-            <span key={`${group}-${index}`}>{group}</span>
+            <span key={`${group}-${index}`}>
+              {index + 1} : {group}
+            </span>
           ))}
         </code>
         <div className="wasp-inline-action">
@@ -158,14 +167,22 @@ export function VaultSetupForm({ onCreated }: { onCreated: (vault: VaultRecord) 
           <Button variant="default" onClick={() => window.print()}>
             Imprimer
           </Button>
+          <Button variant="invisible" onClick={handleRestart}>
+            Recommencer
+          </Button>
         </div>
         <form className="wasp-vault-form" onSubmit={handleSave}>
-          <Text>Confirmez les groupes demandés pour terminer.</Text>
+          <Text>
+            Recopiez ci-dessous les groupes demandés tels qu’ils apparaissent dans la clé numérotée
+            ci-dessus (4 caractères chacun). Cette vérification prouve que vous avez conservé la clé
+            ; elle n’est envoyée à aucun serveur.
+          </Text>
           {pending.confirmationGroups.map((groupIndex, answerIndex) => (
             <label className="wasp-field" key={groupIndex}>
-              <span>Groupe {groupIndex + 1}</span>
+              <span>Groupe {groupIndex + 1} (4 caractères)</span>
               <TextInput
                 value={answers[answerIndex] ?? ''}
+                maxLength={4}
                 onChange={(event) =>
                   setAnswers((current) =>
                     current.map((value, index) =>
