@@ -6,6 +6,7 @@ import { Button, Heading, Text, Textarea } from '@primer/react'
 import { decryptBytes, deriveObjectKey, encryptBytes, importRootKey } from '@/src/crypto/aead'
 import { withKey } from '@/src/crypto/key-store'
 import { parseDotenv } from '@/lib/dotenv'
+import { EnvLineMap } from './env-line-map'
 
 type EncryptedFile = {
   id: string
@@ -166,6 +167,7 @@ export function EnvFileEditor({
               placeholder={'DATABASE_URL=…\nAPI_TOKEN=…'}
             />
           </label>
+          {source.split(/\r?\n/).length > 100 && <EnvLineMap source={source} />}
           <Text size="small">
             {document.variableNames.length} variable(s) reconnue(s)
             {document.duplicateNames.length

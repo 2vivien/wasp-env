@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import useSWR from 'swr'
 import QRCode from 'qrcode'
 import Image from 'next/image'
@@ -715,6 +716,15 @@ export function VaultItemList({
       name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
   )
   const legacyItemCount = names.filter(({ item }) => !item.encryptedPayload.scopeKeyEnvelope).length
+  const listRef = useRef<HTMLDivElement>(null)
+  // TanStack Virtual renvoie des fonctions stables par conception : faux positif de la règle React.
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const virtualizer = useVirtualizer({
+    count: filteredNames.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => 96,
+    overscan: 6,
+  })
 
   if (items.length === 0)
     return (
@@ -784,327 +794,378 @@ export function VaultItemList({
       {filteredNames.length === 0 && (
         <Text className="wasp-empty-note">Aucun secret ne correspond à cette recherche.</Text>
       )}
-      {filteredNames.map(({ id, name, kind, meta, item }) => (
-        <article className="wasp-secret-row" key={id}>
-          {editing?.id === id ? (
-            <VaultItemEditor
-              vaultId={vaultId}
-              item={item}
-              initialName={editing.name}
-              initialValue={editing.value}
-              initialMeta={editing.meta}
-              onCancel={() => setEditing(null)}
-              onSaved={handleUpdated}
-            />
-          ) : (
-            <>
-              <div className="wasp-secret-row-copy">
-                <strong>
-                  {meta.favorite ? '★ ' : ''}
-                  {name}
-                </strong>
-                <Text size="small">
-                  {meta.category} ·{' '}
-                  {kind === 'env-file'
-                    ? 'Fichier chiffré'
-                    : `Version ${item.encryptedPayload.version}`}
-                  {meta.tags.length ? ` · ${meta.tags.join(', ')}` : ''}
-                  {meta.archivedAt ? ' · Archivé' : ''}
-                </Text>
-                {meta.description && <Text size="small">{meta.description}</Text>}
-                {kind === 'secret' && <code>{revealed[id] ?? '••••••••'}</code>}
-              </div>
-              <div className="wasp-secret-actions">
-                {kind === 'env-file' ? (
-                  <Button
-                    variant="invisible"
-                    onClick={() => void handleExport({ id, name, kind, meta, item })}
-                    aria-label={`Exporter ${name}`}
-                  >
-                    Exporter .env
-                  </Button>
-                ) : (
-                  <>
-                    {canWrite && (
-                      <Button
-                        variant="invisible"
-                        onClick={() => void toggleFavorite({ id, name, kind, meta, item })}
-                        aria-label={
-                          meta.favorite
-                            ? `Retirer ${name} des favoris`
-                            : `Ajouter ${name} aux favoris`
-                        }
-                      >
-                        {meta.favorite ? '★' : '☆'}
-                      </Button>
-                    )}
-                    {canWrite && (
-                      <Button
-                        variant="invisible"
-                        onClick={() => void duplicate({ id, name, kind, meta, item })}
-                        aria-label={`Dupliquer ${name}`}
-                      >
-                        Dupliquer
-                      </Button>
-                    )}
-                    {canWrite && (
-                      <Button
-                        variant="invisible"
-                        onClick={() => {
-                          setMovingItemId(movingItemId === id ? null : id)
-                          setTargetVaultId('')
-                        }}
-                        aria-label={`Déplacer ${name}`}
-                      >
-                        Déplacer
-                      </Button>
-                    )}
-                    {canWrite && (
-                      <Button
-                        variant="invisible"
-                        onClick={() => void toggleArchive({ id, name, kind, meta, item })}
-                        aria-label={meta.archivedAt ? `Restaurer ${name}` : `Archiver ${name}`}
-                      >
-                        {meta.archivedAt ? 'Restaurer' : 'Archiver'}
-                      </Button>
-                    )}
-                    {canWrite && (
-                      <Button
-                        variant="invisible"
-                        onClick={() => void handleEdit({ id, name, kind, meta, item })}
-                        aria-label={`Modifier ${name}`}
-                      >
-                        Modifier
-                      </Button>
-                    )}
-                    <Button
-                      variant="invisible"
-                      onClick={() => void handleReveal(item)}
-                      aria-label={`Révéler ${name}`}
-                    >
-                      {revealed[id] === undefined ? 'Révéler 10 s' : 'Masquer'}
-                    </Button>
-                    <Button
-                      variant="invisible"
-                      onClick={() => void handleCopy(item)}
-                      aria-label={`Copier ${name}`}
-                    >
-                      Copier
-                    </Button>
-                    {canWrite && canShare && kind === 'secret' && (
-                      <Button
-                        variant="invisible"
-                        disabled={shareBusy}
-                        onClick={() => {
-                          setSharingItemId(sharingItemId === id ? null : id)
-                          setShareNotice('')
-                        }}
-                      >
-                        Partager ce secret
-                      </Button>
-                    )}
-                    {canWrite && canShare && kind === 'secret' && (
-                      <Button
-                        variant="invisible"
-                        disabled={rotationBusy}
-                        onClick={() => void rotateSecretScope({ id, name, kind, meta, item })}
-                      >
-                        Renouveler la clé
-                      </Button>
-                    )}
-                    <Button
-                      variant="invisible"
-                      disabled={linkBusy}
-                      onClick={() => void handleCreatePrivateLink({ id, name, kind, meta, item })}
-                    >
-                      Lien privé + QR
-                    </Button>
-                  </>
-                )}
-                {canWrite && (
-                  <Button
-                    variant="invisible"
-                    onClick={() => void handleDelete(id, name)}
-                    aria-label={`Supprimer ${name}`}
-                  >
-                    Supprimer
-                  </Button>
-                )}
-              </div>
-              {movingItemId === id && canWrite && (
-                <div className="wasp-version-history">
-                  <Text size="small">Le secret sera rechiffré avec la clé du coffre cible.</Text>
-                  <label className="wasp-field">
-                    <span>Coffre cible</span>
-                    <select
-                      value={targetVaultId}
-                      onChange={(event) => setTargetVaultId(event.target.value)}
-                      aria-label="Coffre cible"
-                    >
-                      <option value="">Choisir…</option>
-                      {vaults.data?.vaults
-                        .filter((vault) => vault.id !== vaultId)
-                        .map((vault) => (
-                          <option key={vault.id} value={vault.id}>
-                            {vault.id.slice(0, 8)}
-                          </option>
-                        ))}
-                    </select>
-                  </label>
-                  <div className="wasp-inline-action">
-                    <Button
-                      variant="primary"
-                      disabled={!targetVaultId}
-                      onClick={() => void moveSecret({ id, name, kind, meta, item }, targetVaultId)}
-                    >
-                      Déplacer
-                    </Button>
-                    <Button variant="invisible" onClick={() => setMovingItemId(null)}>
-                      Annuler
-                    </Button>
-                  </div>
-                </div>
-              )}
-              {sharingItemId === id && canShare && (
-                <div className="wasp-version-history">
-                  <Text size="small">
-                    Partage en lecture seule, chiffré pour chaque destinataire, sans transmettre la
-                    clé du coffre. L’invitation expire dans 30 jours. Un groupe inclut ses membres
-                    actuels; partagez à nouveau après tout changement de membres.
-                  </Text>
-                  <label className="wasp-field">
-                    <span>Destinataire</span>
-                    <select
-                      value={shareGroupId}
-                      onChange={(event) => setShareGroupId(event.target.value)}
-                      aria-label="Destinataire du secret"
-                    >
-                      <option value="">Une personne</option>
-                      {groupsData?.groups.map((group) => (
-                        <option key={group.id} value={group.id}>
-                          Groupe : {group.name} ({group.members.length})
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  {!shareGroupId && (
-                    <label className="wasp-field">
-                      <span>Pseudo de la personne</span>
-                      <TextInput
-                        value={shareHandle}
-                        onChange={(event) => setShareHandle(event.target.value)}
-                        placeholder="ex. alice"
-                        autoComplete="off"
-                        maxLength={33}
+      {filteredNames.length > 0 && (
+        <div
+          ref={listRef}
+          className="wasp-secret-virtual-list"
+          style={{ maxHeight: '70vh', overflowY: 'auto' }}
+        >
+          <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const entry = filteredNames[virtualRow.index]
+              if (!entry) return null
+              const { id, name, kind, meta, item } = entry
+              return (
+                <div
+                  key={id}
+                  data-index={virtualRow.index}
+                  ref={virtualizer.measureElement}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  <article className="wasp-secret-row">
+                    {editing?.id === id ? (
+                      <VaultItemEditor
+                        vaultId={vaultId}
+                        item={item}
+                        initialName={editing.name}
+                        initialValue={editing.value}
+                        initialMeta={editing.meta}
+                        onCancel={() => setEditing(null)}
+                        onSaved={handleUpdated}
                       />
-                    </label>
-                  )}
-                  {!shareGroupId && <RecipientFingerprint handle={shareHandle} />}
-                  <div className="wasp-inline-action">
-                    <Button
-                      variant="primary"
-                      disabled={shareBusy || (!shareGroupId && !shareHandle.trim())}
-                      onClick={() => void shareSecret({ id, name, kind, meta, item })}
-                    >
-                      {shareBusy ? 'Envoi…' : 'Envoyer l’invitation'}
-                    </Button>
-                    <Button
-                      variant="invisible"
-                      disabled={shareBusy}
-                      onClick={() => setSharingItemId(null)}
-                    >
-                      Annuler
-                    </Button>
-                  </div>
-                  {shareNotice && <Text role="status">{shareNotice}</Text>}
-                </div>
-              )}
-              {createdLink?.itemId === id && (
-                <div className="wasp-version-history" aria-live="polite">
-                  <Text size="small">
-                    Lien en lecture seule · expire dans 7 jours · maximum 20 ouvertures ·{' '}
-                    {createdLink.hasAccessCode
-                      ? 'code d’accès activé (partagez-le séparément du lien)'
-                      : 'sans code d’accès'}
-                    . La clé privée se trouve uniquement dans le fragment de l’URL.
-                  </Text>
-                  <Image
-                    src={createdLink.qr}
-                    alt={`Code QR du lien privé pour ${name}`}
-                    width={220}
-                    height={220}
-                    unoptimized
-                  />
-                  <label className="wasp-field">
-                    <span>Lien privé (à transmettre uniquement à la personne concernée)</span>
-                    <TextInput
-                      value={createdLink.url}
-                      readOnly
-                      aria-label={`Lien privé pour ${name}`}
-                    />
-                  </label>
-                  <div className="wasp-inline-action">
-                    <Button
-                      onClick={async () => {
-                        await navigator.clipboard.writeText(createdLink.url)
-                        setNotice('Lien privé copié.')
-                      }}
-                    >
-                      Copier le lien
-                    </Button>
-                    <Button
-                      variant="danger"
-                      disabled={linkBusy}
-                      onClick={() => void revokePrivateLink()}
-                    >
-                      Révoquer le lien
-                    </Button>
-                  </div>
-                </div>
-              )}
-              {canWrite && (item.encryptedPayload.history?.length ?? 0) > 0 && (
-                <div className="wasp-version-history">
-                  <Button
-                    variant="invisible"
-                    aria-expanded={historyItemId === id}
-                    onClick={() => setHistoryItemId(historyItemId === id ? null : id)}
-                  >
-                    Versions précédentes ({item.encryptedPayload.history?.length})
-                  </Button>
-                  {historyItemId === id && (
-                    <ul aria-label={`Versions précédentes de ${name}`}>
-                      {[...(item.encryptedPayload.history ?? [])].reverse().map((revision) => (
-                        <li key={`${id}-${revision.version}`}>
+                    ) : (
+                      <>
+                        <div className="wasp-secret-row-copy">
+                          <strong>
+                            {meta.favorite ? '★ ' : ''}
+                            {name}
+                          </strong>
                           <Text size="small">
-                            Version {revision.version} ·{' '}
-                            {new Date(revision.createdAt).toLocaleString('fr-FR')}
+                            {meta.category} ·{' '}
+                            {kind === 'env-file'
+                              ? 'Fichier chiffré'
+                              : `Version ${item.encryptedPayload.version}`}
+                            {meta.tags.length ? ` · ${meta.tags.join(', ')}` : ''}
+                            {meta.archivedAt ? ' · Archivé' : ''}
                           </Text>
-                          <Button
-                            variant="invisible"
-                            onClick={() =>
-                              void compareRevision({ id, name, kind, meta, item }, revision)
-                            }
-                          >
-                            Comparer
-                          </Button>
-                          <Button
-                            variant="default"
-                            onClick={() =>
-                              void handleRestore({ id, name, kind, meta, item }, revision)
-                            }
-                          >
-                            Restaurer
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                          {meta.description && <Text size="small">{meta.description}</Text>}
+                          {kind === 'secret' && <code>{revealed[id] ?? '••••••••'}</code>}
+                        </div>
+                        <div className="wasp-secret-actions">
+                          {kind === 'env-file' ? (
+                            <Button
+                              variant="invisible"
+                              onClick={() => void handleExport({ id, name, kind, meta, item })}
+                              aria-label={`Exporter ${name}`}
+                            >
+                              Exporter .env
+                            </Button>
+                          ) : (
+                            <>
+                              {canWrite && (
+                                <Button
+                                  variant="invisible"
+                                  onClick={() =>
+                                    void toggleFavorite({ id, name, kind, meta, item })
+                                  }
+                                  aria-label={
+                                    meta.favorite
+                                      ? `Retirer ${name} des favoris`
+                                      : `Ajouter ${name} aux favoris`
+                                  }
+                                >
+                                  {meta.favorite ? '★' : '☆'}
+                                </Button>
+                              )}
+                              {canWrite && (
+                                <Button
+                                  variant="invisible"
+                                  onClick={() => void duplicate({ id, name, kind, meta, item })}
+                                  aria-label={`Dupliquer ${name}`}
+                                >
+                                  Dupliquer
+                                </Button>
+                              )}
+                              {canWrite && (
+                                <Button
+                                  variant="invisible"
+                                  onClick={() => {
+                                    setMovingItemId(movingItemId === id ? null : id)
+                                    setTargetVaultId('')
+                                  }}
+                                  aria-label={`Déplacer ${name}`}
+                                >
+                                  Déplacer
+                                </Button>
+                              )}
+                              {canWrite && (
+                                <Button
+                                  variant="invisible"
+                                  onClick={() => void toggleArchive({ id, name, kind, meta, item })}
+                                  aria-label={
+                                    meta.archivedAt ? `Restaurer ${name}` : `Archiver ${name}`
+                                  }
+                                >
+                                  {meta.archivedAt ? 'Restaurer' : 'Archiver'}
+                                </Button>
+                              )}
+                              {canWrite && (
+                                <Button
+                                  variant="invisible"
+                                  onClick={() => void handleEdit({ id, name, kind, meta, item })}
+                                  aria-label={`Modifier ${name}`}
+                                >
+                                  Modifier
+                                </Button>
+                              )}
+                              <Button
+                                variant="invisible"
+                                onClick={() => void handleReveal(item)}
+                                aria-label={`Révéler ${name}`}
+                              >
+                                {revealed[id] === undefined ? 'Révéler 10 s' : 'Masquer'}
+                              </Button>
+                              <Button
+                                variant="invisible"
+                                onClick={() => void handleCopy(item)}
+                                aria-label={`Copier ${name}`}
+                              >
+                                Copier
+                              </Button>
+                              {canWrite && canShare && kind === 'secret' && (
+                                <Button
+                                  variant="invisible"
+                                  disabled={shareBusy}
+                                  onClick={() => {
+                                    setSharingItemId(sharingItemId === id ? null : id)
+                                    setShareNotice('')
+                                  }}
+                                >
+                                  Partager ce secret
+                                </Button>
+                              )}
+                              {canWrite && canShare && kind === 'secret' && (
+                                <Button
+                                  variant="invisible"
+                                  disabled={rotationBusy}
+                                  onClick={() =>
+                                    void rotateSecretScope({ id, name, kind, meta, item })
+                                  }
+                                >
+                                  Renouveler la clé
+                                </Button>
+                              )}
+                              <Button
+                                variant="invisible"
+                                disabled={linkBusy}
+                                onClick={() =>
+                                  void handleCreatePrivateLink({ id, name, kind, meta, item })
+                                }
+                              >
+                                Lien privé + QR
+                              </Button>
+                            </>
+                          )}
+                          {canWrite && (
+                            <Button
+                              variant="invisible"
+                              onClick={() => void handleDelete(id, name)}
+                              aria-label={`Supprimer ${name}`}
+                            >
+                              Supprimer
+                            </Button>
+                          )}
+                        </div>
+                        {movingItemId === id && canWrite && (
+                          <div className="wasp-version-history">
+                            <Text size="small">
+                              Le secret sera rechiffré avec la clé du coffre cible.
+                            </Text>
+                            <label className="wasp-field">
+                              <span>Coffre cible</span>
+                              <select
+                                value={targetVaultId}
+                                onChange={(event) => setTargetVaultId(event.target.value)}
+                                aria-label="Coffre cible"
+                              >
+                                <option value="">Choisir…</option>
+                                {vaults.data?.vaults
+                                  .filter((vault) => vault.id !== vaultId)
+                                  .map((vault) => (
+                                    <option key={vault.id} value={vault.id}>
+                                      {vault.id.slice(0, 8)}
+                                    </option>
+                                  ))}
+                              </select>
+                            </label>
+                            <div className="wasp-inline-action">
+                              <Button
+                                variant="primary"
+                                disabled={!targetVaultId}
+                                onClick={() =>
+                                  void moveSecret({ id, name, kind, meta, item }, targetVaultId)
+                                }
+                              >
+                                Déplacer
+                              </Button>
+                              <Button variant="invisible" onClick={() => setMovingItemId(null)}>
+                                Annuler
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        {sharingItemId === id && canShare && (
+                          <div className="wasp-version-history">
+                            <Text size="small">
+                              Partage en lecture seule, chiffré pour chaque destinataire, sans
+                              transmettre la clé du coffre. L’invitation expire dans 30 jours. Un
+                              groupe inclut ses membres actuels; partagez à nouveau après tout
+                              changement de membres.
+                            </Text>
+                            <label className="wasp-field">
+                              <span>Destinataire</span>
+                              <select
+                                value={shareGroupId}
+                                onChange={(event) => setShareGroupId(event.target.value)}
+                                aria-label="Destinataire du secret"
+                              >
+                                <option value="">Une personne</option>
+                                {groupsData?.groups.map((group) => (
+                                  <option key={group.id} value={group.id}>
+                                    Groupe : {group.name} ({group.members.length})
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            {!shareGroupId && (
+                              <label className="wasp-field">
+                                <span>Pseudo de la personne</span>
+                                <TextInput
+                                  value={shareHandle}
+                                  onChange={(event) => setShareHandle(event.target.value)}
+                                  placeholder="ex. alice"
+                                  autoComplete="off"
+                                  maxLength={33}
+                                />
+                              </label>
+                            )}
+                            {!shareGroupId && <RecipientFingerprint handle={shareHandle} />}
+                            <div className="wasp-inline-action">
+                              <Button
+                                variant="primary"
+                                disabled={shareBusy || (!shareGroupId && !shareHandle.trim())}
+                                onClick={() => void shareSecret({ id, name, kind, meta, item })}
+                              >
+                                {shareBusy ? 'Envoi…' : 'Envoyer l’invitation'}
+                              </Button>
+                              <Button
+                                variant="invisible"
+                                disabled={shareBusy}
+                                onClick={() => setSharingItemId(null)}
+                              >
+                                Annuler
+                              </Button>
+                            </div>
+                            {shareNotice && <Text role="status">{shareNotice}</Text>}
+                          </div>
+                        )}
+                        {createdLink?.itemId === id && (
+                          <div className="wasp-version-history" aria-live="polite">
+                            <Text size="small">
+                              Lien en lecture seule · expire dans 7 jours · maximum 20 ouvertures ·{' '}
+                              {createdLink.hasAccessCode
+                                ? 'code d’accès activé (partagez-le séparément du lien)'
+                                : 'sans code d’accès'}
+                              . La clé privée se trouve uniquement dans le fragment de l’URL.
+                            </Text>
+                            <Image
+                              src={createdLink.qr}
+                              alt={`Code QR du lien privé pour ${name}`}
+                              width={220}
+                              height={220}
+                              unoptimized
+                            />
+                            <label className="wasp-field">
+                              <span>
+                                Lien privé (à transmettre uniquement à la personne concernée)
+                              </span>
+                              <TextInput
+                                value={createdLink.url}
+                                readOnly
+                                aria-label={`Lien privé pour ${name}`}
+                              />
+                            </label>
+                            <div className="wasp-inline-action">
+                              <Button
+                                onClick={async () => {
+                                  await navigator.clipboard.writeText(createdLink.url)
+                                  setNotice('Lien privé copié.')
+                                }}
+                              >
+                                Copier le lien
+                              </Button>
+                              <Button
+                                variant="danger"
+                                disabled={linkBusy}
+                                onClick={() => void revokePrivateLink()}
+                              >
+                                Révoquer le lien
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        {canWrite && (item.encryptedPayload.history?.length ?? 0) > 0 && (
+                          <div className="wasp-version-history">
+                            <Button
+                              variant="invisible"
+                              aria-expanded={historyItemId === id}
+                              onClick={() => setHistoryItemId(historyItemId === id ? null : id)}
+                            >
+                              Versions précédentes ({item.encryptedPayload.history?.length})
+                            </Button>
+                            {historyItemId === id && (
+                              <ul aria-label={`Versions précédentes de ${name}`}>
+                                {[...(item.encryptedPayload.history ?? [])]
+                                  .reverse()
+                                  .map((revision) => (
+                                    <li key={`${id}-${revision.version}`}>
+                                      <Text size="small">
+                                        Version {revision.version} ·{' '}
+                                        {new Date(revision.createdAt).toLocaleString('fr-FR')}
+                                      </Text>
+                                      <Button
+                                        variant="invisible"
+                                        onClick={() =>
+                                          void compareRevision(
+                                            { id, name, kind, meta, item },
+                                            revision,
+                                          )
+                                        }
+                                      >
+                                        Comparer
+                                      </Button>
+                                      <Button
+                                        variant="default"
+                                        onClick={() =>
+                                          void handleRestore(
+                                            { id, name, kind, meta, item },
+                                            revision,
+                                          )
+                                        }
+                                      >
+                                        Restaurer
+                                      </Button>
+                                    </li>
+                                  ))}
+                              </ul>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </article>
                 </div>
-              )}
-            </>
-          )}
-        </article>
-      ))}
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
