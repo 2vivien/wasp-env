@@ -32,6 +32,12 @@ The password, root, and vault keys stay in memory only. This does not replace au
 - **Alternative écartée :** RLS avec `current_setting` non positionné, non testable et non vérifié en CI.
 - **Réaffirmé le 27/11/2026 :** l'isolation est désormais couverte par `tests/idor.test.ts` sur la base de test en CI ; l'activation de RLS resterait une défense en profondeur nécessitant une identité par transaction, non présente dans le pool pg actuel.
 
+## 2026-11-27 — CSP et polices
+
+- **Choix :** `font-src 'self' data:` (au lieu de `'self'` seul) afin d'autoriser les polices embarquées en `data:` par les outils de prévisualisation, sans ouvrir les origines externes.
+- **Raison :** la CSP stricte reste maintenue ; les avertissements de la console sur un domaine de preview Vercel/V0 ne doivent pas pousser à autoriser `https:` arbitraire.
+- **Alternative écartée :** `font-src *`, qui annulerait la protection contre le chargement de ressources tierces.
+
 ## 2026-11-27 — Budgets de performance
 
 - **Choix :** `pnpm check:budgets` mesure le JS gzip chargé au démarrage à partir des manifests de build Next. Le budget public est fixé à 180 Ko gzip (mesuré 167,9 Ko) et celui des routes applicatives à 250 Ko.

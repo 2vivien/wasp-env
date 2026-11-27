@@ -13,10 +13,11 @@ const APP_PATH_PREFIXES = [
 const SENSITIVE_PREFIXES = ['/l', '/share/private', '/unlock', ...APP_PATH_PREFIXES] as const
 
 function hasSessionCookie(request: NextRequest): boolean {
-  return [...request.cookies.getAll()].some(({ name }) =>
-    name === 'better-auth.session_token' ||
-    name === '__Secure-better-auth.session_token' ||
-    name.endsWith('.session_token'),
+  return [...request.cookies.getAll()].some(
+    ({ name }) =>
+      name === 'better-auth.session_token' ||
+      name === '__Secure-better-auth.session_token' ||
+      name.endsWith('.session_token'),
   )
 }
 
@@ -33,7 +34,7 @@ export function proxy(request: NextRequest) {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ''}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data:",
-    "font-src 'self'",
+    "font-src 'self' data:",
     "connect-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
