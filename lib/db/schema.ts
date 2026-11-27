@@ -89,6 +89,17 @@ export const profiles = pgTable(
   (table) => [uniqueIndex('profiles_handle_unique').on(table.handleNormalized)],
 )
 
+export const reservedHandles = pgTable(
+  'reserved_handles',
+  {
+    handleNormalized: text('handleNormalized').primaryKey(),
+    userId: text('userId').references(() => user.id, { onDelete: 'set null' }),
+    reservedUntil: timestamp('reservedUntil', { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [index('reserved_handles_until_idx').on(table.reservedUntil)],
+)
+
 export const vaults = pgTable(
   'vaults',
   {

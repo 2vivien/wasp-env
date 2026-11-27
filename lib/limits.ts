@@ -1,5 +1,7 @@
 export const LIMITS = {
   handle: { min: 3, max: 20 },
+  handleChangeCooldownMs: 30 * 24 * 60 * 60 * 1000,
+  handleReservationMs: 30 * 24 * 60 * 60 * 1000,
   displayName: { min: 1, max: 50 },
   bio: { max: 160 },
   encryptedNameBytes: { max: 4096 },

@@ -1,18 +1,22 @@
 import { genericErrorMessage } from './errors'
 import { requestId } from './request-id'
 
-type ErrorBody = { error?: { code?: unknown; message?: unknown; [key: string]: unknown }; [key: string]: unknown }
+type ErrorBody = {
+  error?: { code?: unknown; message?: unknown; [key: string]: unknown }
+  [key: string]: unknown
+}
 
 function normalizeBody(data: unknown): unknown {
   if (!data || typeof data !== 'object' || !('error' in data)) return data
   const body = data as ErrorBody
   const error = body.error
   if (!error || typeof error !== 'object' || typeof error.code !== 'string') return data
-  const { code, currentVersion } = error
+  const { code, currentVersion, retryAt } = error
   return {
     ...body,
     error: {
       ...(typeof currentVersion === 'number' ? { currentVersion } : {}),
+      ...(typeof retryAt === 'string' ? { retryAt } : {}),
       code,
       message: genericErrorMessage(code),
       requestId: requestId(),
@@ -37,7 +41,10 @@ export function hasValidMutationHeaders(request: Request, requiresJson: boolean)
   }
 
   if (!origin || origin !== requestOrigin) return false
-  if (requiresJson && !request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) {
+  if (
+    requiresJson &&
+    !request.headers.get('content-type')?.toLowerCase().startsWith('application/json')
+  ) {
     return false
   }
 
