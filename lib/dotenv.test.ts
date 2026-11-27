@@ -1,5 +1,23 @@
 import { describe, expect, it } from 'vitest'
-import { exportDotenv, parseDotenv } from './dotenv'
+import { dotenvSourceFromNodes, exportDotenv, parseDotenv, replaceDotenvLine } from './dotenv'
+
+describe('édition virtualisée des lignes', () => {
+  it('reconstruit la source sans altérer les fins de ligne', () => {
+    for (const source of ['A=1\nB=2\n', 'A=1\r\nB=2\r\n', 'A=1\rB=2\r', '# c\nA="x\ny"\n']) {
+      const document = parseDotenv(source)
+      expect(dotenvSourceFromNodes(document.nodes)).toBe(source)
+      expect(exportDotenv(document)).toBe(source)
+    }
+  })
+
+  it('remplace uniquement la ligne visée', () => {
+    const source = 'A=1\r\n# commentaire\r\nB="x"\r\n'
+    const document = parseDotenv(source)
+    const updated = replaceDotenvLine(document, 1, 'A=42')
+    expect(updated).toBe('A=42\r\n# commentaire\r\nB="x"\r\n')
+    expect(parseDotenv(updated).variableNames).toEqual(['A', 'B'])
+  })
+})
 
 describe('dotenv source preservation', () => {
   it('round-trips a corpus of 40 edge-case documents byte-for-byte', () => {
@@ -37,10 +55,14 @@ describe('dotenv source preservation', () => {
   })
 
   it('detects assignment names, duplicate keys and malformed lines without parsing values', () => {
-    const document = parseDotenv('\uFEFF# keep\r\nexport API_KEY="a=b#c"\r\nAPI_KEY=second\nBROKEN LINE\n\n')
+    const document = parseDotenv(
+      '\uFEFF# keep\r\nexport API_KEY="a=b#c"\r\nAPI_KEY=second\nBROKEN LINE\n\n',
+    )
     expect(document.variableNames).toEqual(['API_KEY'])
     expect(document.duplicateNames).toEqual(['API_KEY'])
     expect(document.malformedLines).toEqual([4])
-    expect(exportDotenv(document)).toBe('\uFEFF# keep\r\nexport API_KEY="a=b#c"\r\nAPI_KEY=second\nBROKEN LINE\n\n')
+    expect(exportDotenv(document)).toBe(
+      '\uFEFF# keep\r\nexport API_KEY="a=b#c"\r\nAPI_KEY=second\nBROKEN LINE\n\n',
+    )
   })
 })

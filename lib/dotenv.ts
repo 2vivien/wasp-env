@@ -69,7 +69,9 @@ export function parseDotenv(source: string): DotenvDocument {
     const node = classifyLine(line, lineNumber)
     if (node.kind === 'assignment') {
       const content = line.replace(/(?:\r\n|\r|\n)$/, '').replace(/^\uFEFF/, '')
-      const value = content.match(/^\s*(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=(.*)$/)?.[1]?.trimStart()
+      const value = content
+        .match(/^\s*(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=(.*)$/)?.[1]
+        ?.trimStart()
       const quote = value?.[0]
       if ((quote === '"' || quote === "'") && value && !hasClosingQuote(value.slice(1), quote)) {
         openQuote = quote
@@ -80,7 +82,8 @@ export function parseDotenv(source: string): DotenvDocument {
   })
   const counts = new Map<string, number>()
   for (const node of nodes) {
-    if (node.kind === 'assignment' && node.key) counts.set(node.key, (counts.get(node.key) ?? 0) + 1)
+    if (node.kind === 'assignment' && node.key)
+      counts.set(node.key, (counts.get(node.key) ?? 0) + 1)
   }
   const malformedLines = nodes.filter((node) => node.kind === 'raw').map((node) => node.line)
   if (openQuote && openQuoteLine > 0) malformedLines.push(openQuoteLine)
@@ -96,4 +99,20 @@ export function parseDotenv(source: string): DotenvDocument {
 
 export function exportDotenv(document: DotenvDocument): string {
   return document.source
+}
+
+/** Reconstruit la source exacte à partir des nœuds (fins de ligne incluses). */
+export function dotenvSourceFromNodes(nodes: DotenvNode[]): string {
+  return nodes.map((node) => node.source).join('')
+}
+
+const lineEnding = (source: string): string => source.match(/(\r\n|\r|\n)$/)?.[1] ?? ''
+
+/** Remplace une ligne sans toucher à sa fin de ligne d'origine (LF/CRLF/CR). */
+export function replaceDotenvLine(document: DotenvDocument, line: number, content: string): string {
+  return dotenvSourceFromNodes(
+    document.nodes.map((node) =>
+      node.line === line ? { ...node, source: content + lineEnding(node.source) } : node,
+    ),
+  )
 }

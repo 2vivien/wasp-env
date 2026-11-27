@@ -6,7 +6,7 @@ import { Button, Heading, Text, Textarea } from '@primer/react'
 import { decryptBytes, deriveObjectKey, encryptBytes, importRootKey } from '@/src/crypto/aead'
 import { withKey } from '@/src/crypto/key-store'
 import { parseDotenv } from '@/lib/dotenv'
-import { EnvLineMap } from './env-line-map'
+import { EnvVirtualEditor } from './env-virtual-editor'
 
 type EncryptedFile = {
   id: string
@@ -35,6 +35,7 @@ export function EnvFileEditor({
     { revalidateOnFocus: false, shouldRetryOnError: false },
   )
   const [source, setSource] = useState('')
+  const [rawMode, setRawMode] = useState(true)
   const [opened, setOpened] = useState(false)
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -157,17 +158,28 @@ export function EnvFileEditor({
         </Button>
       ) : (
         <>
-          <label className="wasp-field">
-            <span>Contenu .env</span>
-            <Textarea
-              aria-label="Contenu du fichier .env"
-              rows={16}
-              value={source}
-              onChange={(event) => setSource(event.target.value)}
-              placeholder={'DATABASE_URL=…\nAPI_TOKEN=…'}
-            />
-          </label>
-          {source.split(/\r?\n/).length > 100 && <EnvLineMap source={source} />}
+          <div className="wasp-inline-action">
+            <Button variant={rawMode ? 'primary' : 'default'} onClick={() => setRawMode(true)}>
+              Texte brut
+            </Button>
+            <Button variant={rawMode ? 'default' : 'primary'} onClick={() => setRawMode(false)}>
+              Lignes virtualisées
+            </Button>
+          </div>
+          {rawMode ? (
+            <label className="wasp-field">
+              <span>Contenu .env</span>
+              <Textarea
+                aria-label="Contenu du fichier .env"
+                rows={16}
+                value={source}
+                onChange={(event) => setSource(event.target.value)}
+                placeholder={'DATABASE_URL=…\nAPI_TOKEN=…'}
+              />
+            </label>
+          ) : (
+            <EnvVirtualEditor source={source} onChange={setSource} />
+          )}
           <Text size="small">
             {document.variableNames.length} variable(s) reconnue(s)
             {document.duplicateNames.length
