@@ -30,6 +30,7 @@ The password, root, and vault keys stay in memory only. This does not replace au
 - **Choix retenu :** filtrage applicatif strict par `userId`/`vaultId` dans chaque repository implicite, privilèges de base minimaux et contraintes d’unicité/foreign keys vérifiées par les migrations. RLS est différé jusqu’à la définition d’un rôle Postgres par utilisateur ou d’un `SET LOCAL app.user_id` dans chaque transaction.
 - **Raison :** le pool pg unique ne porte pas encore d’identité utilisateur par transaction ; activer RLS maintenant bloquerait les requêtes ou donnerait une fausse sensation de sécurité.
 - **Alternative écartée :** RLS avec `current_setting` non positionné, non testable et non vérifié en CI.
+- **Réaffirmé le 27/11/2026 :** l'isolation est désormais couverte par `tests/idor.test.ts` sur la base de test en CI ; l'activation de RLS resterait une défense en profondeur nécessitant une identité par transaction, non présente dans le pool pg actuel.
 
 ## 2026-11-27 — Budgets de performance
 

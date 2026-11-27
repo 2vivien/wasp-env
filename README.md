@@ -29,6 +29,7 @@ Commandes qualité : `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`.
 - [Spécification MVP](docs/00-LIRE-EN-PREMIER.md)
 - [État fonctionnel](docs/etat-fonctionnel.md)
 - [Guide utilisateur](docs/guide-utilisateur.md)
+- [Revue de sécurité interne](docs/AUDIT-INTERNE.md) (ne remplace pas un audit externe)
 - [Modèle de menace](THREAT_MODEL.md)
 - [Signalement de vulnérabilité](SECURITY.md)
 - [Décisions techniques](DECISIONS.md)
