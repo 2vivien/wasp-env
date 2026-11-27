@@ -524,6 +524,21 @@ html[data-color-mode='light'] .wasp-vault-card button[data-variant='primary'] {
   filter: brightness(1.05);
 }
 
+.wasp-hero-actions a[data-variant='primary'] {
+  border-color: var(--wasp-accent-dark);
+  background-color: var(--wasp-accent-dark);
+  color: var(--bgColor-default);
+}
+
+html[data-color-mode='light'] .wasp-hero-actions a[data-variant='primary'] {
+  border-color: var(--wasp-accent-light);
+  background-color: var(--wasp-accent-light);
+}
+
+.wasp-hero-actions a[data-variant='primary']:hover {
+  filter: brightness(1.05);
+}
+
 .wasp-login-footnote {
   color: var(--fgColor-muted);
 }

@@ -31,6 +31,12 @@ The password, root, and vault keys stay in memory only. This does not replace au
 - **Raison :** le pool pg unique ne porte pas encore d’identité utilisateur par transaction ; activer RLS maintenant bloquerait les requêtes ou donnerait une fausse sensation de sécurité.
 - **Alternative écartée :** RLS avec `current_setting` non positionné, non testable et non vérifié en CI.
 
+## 2026-11-27 — Contrôle d'accessibilité automatisé
+
+- **Choix :** `@axe-core/playwright` en dépendance de développement, avec un test Playwright sur les pages publiques (`/`, `/login`) filtré sur WCAG 2 A/AA et les violations serious/critical.
+- **Raison :** rendre l'accessibilité vérifiable en CI plutôt que de se fier à une revue manuelle ; le premier passage a détecté un contraste insuffisant sur le bouton Google de la landing, corrigé via les tokens.
+- **Alternative écartée :** injecter `axe-core` à la main dans la page (version non suivie, aucune traçabilité de dépendance).
+
 ## 2026-11-26 — Licence
 
 - **Choix :** MIT, fichier `LICENSE` à la racine.
