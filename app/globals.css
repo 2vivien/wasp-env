@@ -660,10 +660,21 @@ html[data-color-mode='light'] .wasp-hero-actions a[data-variant='primary'] {
   letter-spacing: 0.08em;
 }
 
-.wasp-recovery-key span {
+.wasp-recovery-key span,
+.wasp-recovery-key button {
   padding: 4px 6px;
   border-radius: var(--borderRadius-small);
   background: var(--bgColor-default);
+  color: var(--fgColor-default);
+  border: var(--borderWidth-thin) solid var(--borderColor-default);
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.wasp-recovery-key button:focus-visible {
+  outline: 2px solid var(--wasp-focus);
+  outline-offset: 2px;
 }
 
 .wasp-dashboard-nav {

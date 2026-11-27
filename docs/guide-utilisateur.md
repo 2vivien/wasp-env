@@ -9,7 +9,7 @@ Wasp conserve des secrets chiffrés dans le navigateur avant leur envoi. Le comp
 3. Créer un coffre avec une phrase secrète : vous pouvez la saisir vous-même ou utiliser « Générer une phrase forte », qui la tire dans votre navigateur sans l'envoyer à Wasp. Conserver hors ligne la clé de récupération affichée une seule fois.
 4. Déverrouiller le coffre avec la phrase secrète. La clé reste en mémoire dans l’onglet ; verrouiller le coffre ou se déconnecter quand l’appareil n’est plus utilisé.
 
-La clé de récupération est affichée en groupes de 4 caractères numérotés. Wasp en demande trois au hasard (par exemple « Groupe 1 », « Groupe 7 », « Groupe 8 ») : recopiez le contenu des groupes correspondants tels qu'affichés. C'est une vérification locale que vous avez bien conservé la clé ; rien n'est envoyé à Wasp. Si vous ne l'avez pas notée, utilisez « Recommencer » pour repartir de zéro.
+La clé de récupération est affichée en groupes de 4 caractères numérotés. Wasp en demande trois au hasard (par exemple « Groupe 1 », « Groupe 7 », « Groupe 8 ») : cliquez simplement sur le groupe voulu ci-dessus pour le copier, puis collez-le dans le champ portant le même numéro. C'est une vérification locale que vous avez bien conservé la clé ; rien n'est envoyé à Wasp. Si vous ne l'avez pas notée, utilisez « Recommencer » pour repartir de zéro.
 
 La perte simultanée de la phrase secrète et de la clé de récupération rend les données chiffrées irrécupérables.
 

@@ -16,6 +16,7 @@ export function VaultSetupForm({ onCreated }: { onCreated: (vault: VaultRecord) 
   const [isWorking, setIsWorking] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [generated, setGenerated] = useState('')
+  const [copiedGroup, setCopiedGroup] = useState<number | null>(null)
 
   useEffect(
     () => () => {
@@ -59,6 +60,7 @@ export function VaultSetupForm({ onCreated }: { onCreated: (vault: VaultRecord) 
       setConfirmation('')
       setGenerated('')
       setAnswers(['', '', ''])
+      setCopiedGroup(null)
     } catch {
       setError(
         'Impossible de préparer le coffre dans ce navigateur. Vérifiez sa compatibilité puis réessayez.',
@@ -114,7 +116,15 @@ export function VaultSetupForm({ onCreated }: { onCreated: (vault: VaultRecord) 
     if (pending) wipeBytes(pending.rootKey)
     setPending(null)
     setAnswers(['', '', ''])
+    setCopiedGroup(null)
     setError(null)
+  }
+
+  function copyGroup(group: string, index: number) {
+    void navigator.clipboard.writeText(group).then(
+      () => setCopiedGroup(index + 1),
+      () => setError('Copie impossible. Sélectionnez le groupe manuellement.'),
+    )
   }
 
   function copyRecoveryKey() {
@@ -152,11 +162,23 @@ export function VaultSetupForm({ onCreated }: { onCreated: (vault: VaultRecord) 
         </Text>
         <code className="wasp-recovery-key" aria-label="Clé de récupération numérotée">
           {groups.map((group, index) => (
-            <span key={`${group}-${index}`}>
+            <button
+              type="button"
+              key={`${group}-${index}`}
+              className="wasp-recovery-group"
+              onClick={() => copyGroup(group, index)}
+              aria-label={`Copier le groupe ${index + 1}`}
+              title="Cliquer pour copier ce groupe"
+            >
               {index + 1} : {group}
-            </span>
+            </button>
           ))}
         </code>
+        {copiedGroup !== null && (
+          <Text size="small" role="status">
+            Groupe {copiedGroup} copié. Collez-le dans le champ correspondant.
+          </Text>
+        )}
         <div className="wasp-inline-action">
           <Button variant="default" onClick={copyRecoveryKey}>
             Copier
@@ -173,9 +195,9 @@ export function VaultSetupForm({ onCreated }: { onCreated: (vault: VaultRecord) 
         </div>
         <form className="wasp-vault-form" onSubmit={handleSave}>
           <Text>
-            Recopiez ci-dessous les groupes demandés tels qu’ils apparaissent dans la clé numérotée
-            ci-dessus (4 caractères chacun). Cette vérification prouve que vous avez conservé la clé
-            ; elle n’est envoyée à aucun serveur.
+            Cliquez sur un groupe ci-dessus : il est copié automatiquement. Collez-le ensuite dans
+            le champ qui porte le même numéro. Exemple : « Groupe 1 » se remplit avec le contenu de
+            la ligne « 1 : … ». Cette vérification reste sur votre appareil.
           </Text>
           {pending.confirmationGroups.map((groupIndex, answerIndex) => (
             <label className="wasp-field" key={groupIndex}>
