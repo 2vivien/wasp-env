@@ -31,6 +31,13 @@ The password, root, and vault keys stay in memory only. This does not replace au
 - **Raison :** le pool pg unique ne porte pas encore d’identité utilisateur par transaction ; activer RLS maintenant bloquerait les requêtes ou donnerait une fausse sensation de sécurité.
 - **Alternative écartée :** RLS avec `current_setting` non positionné, non testable et non vérifié en CI.
 
+## 2026-11-27 — Autorisation : ownership ou exceptions
+
+- **Choix :** toute mutation est autorisée soit par un filtre de propriété explicite (`userId = session.user.id`) sur les ressources personnelles, soit par `can(rôle, action, access.permissions)` via `getVaultAccess` sur les ressources de coffre partagé. Les routes sans partage restent volontairement en ownership strict, ce qui est plus restrictif que la matrice ; on n'ouvre pas leur accès aux membres sans rechiffrement explicite.
+- **Raison :** éviter d'appliquer une matrice de permissions à des objets dont la clé n'est pas disponible pour les membres, tout en garantissant que les exceptions par membre sont bien prises en compte côté serveur là où le partage existe.
+- **Alternative écartée :** uniformiser toutes les routes sur `can()` ; cela donnerait l'accès à des objets chiffrés sous une clé que le membre ne détient pas, et créerait une fausse impression de sécurité.
+- **Contrôle :** `tests/api-auth.test.ts` vérifie statiquement qu'aucune mutation n'échappe à ces deux règles.
+
 ## 2026-11-27 — Contrôle d'accessibilité automatisé
 
 - **Choix :** `@axe-core/playwright` en dépendance de développement, avec un test Playwright sur les pages publiques (`/`, `/login`) filtré sur WCAG 2 A/AA et les violations serious/critical.

@@ -34,4 +34,31 @@ describe('authentification des endpoints', () => {
 
     expect(missing).toEqual([])
   })
+
+  it('passe les exceptions à chaque appel de can()', () => {
+    const missing = routeFiles(apiRoot)
+      .map((path) => path.slice(apiRoot.length + 1))
+      .filter((relative) => !PUBLIC_ROUTES.includes(relative))
+      .filter((relative) => {
+        const source = readFileSync(`${apiRoot}/${relative}`, 'utf8')
+        return source.includes('can(') && !/\.permissions/.test(source)
+      })
+    expect(missing).toEqual([])
+  })
+
+  it('filtre chaque mutation par propriétaire ou par la matrice de permissions', () => {
+    const missing = routeFiles(apiRoot)
+      .map((path) => path.slice(apiRoot.length + 1))
+      .filter((relative) => !PUBLIC_ROUTES.includes(relative))
+      .filter((relative) => {
+        const source = readFileSync(`${apiRoot}/${relative}`, 'utf8')
+        if (!/export async function (POST|PUT|PATCH|DELETE)/.test(source)) return false
+        return (
+          !source.includes('session.user.id') &&
+          !source.includes('current.user.id') &&
+          !source.includes('access.permissions')
+        )
+      })
+    expect(missing).toEqual([])
+  })
 })
