@@ -8,4 +8,12 @@ paths = [
   '''\.env\.example$''',
   '''pnpm-lock\.yaml$''',
   '''docs/.*''',
+  '''\.gitleaks\.toml$''',
+]
+
+# Valeurs factices explicites utilisées par la CI et les tests : aucun secret réel.
+[allowlist.regexes]
+regexes = [
+  '''dummy-secret-of-at-least-32-characters''',
+  '''0123456789abcdef''',
 ]
