@@ -6,15 +6,24 @@ import { getCurrentSession } from '@/lib/auth/session'
 import { db } from '@/lib/db'
 import { environments } from '@/lib/db/schema'
 import { EnvDiff } from '@/components/projects/env-diff'
+import { serverData } from '@/lib/server/guard'
+import { ServerErrorNotice } from '@/components/layout/server-error-notice'
 
 export const dynamic = 'force-dynamic'
 
 export default async function EnvPage() {
-  const session = await getCurrentSession()
-  if (!session?.user) redirect('/login?callbackURL=%2Fenv')
-  const rows = await db.select({ id: environments.id, kind: environments.kind, updatedAt: environments.updatedAt })
-    .from(environments)
-    .where(and(eq(environments.userId, session.user.id), isNull(environments.deletedAt)))
+  const loaded = await serverData(async () => {
+    const session = await getCurrentSession()
+    if (!session?.user) return null
+    const rows = await db
+      .select({ id: environments.id, kind: environments.kind, updatedAt: environments.updatedAt })
+      .from(environments)
+      .where(and(eq(environments.userId, session.user.id), isNull(environments.deletedAt)))
+    return { rows }
+  })
+  if (!loaded.ok) return <ServerErrorNotice />
+  if (!loaded.value) redirect('/login?callbackURL=%2Fenv')
+  const { rows } = loaded.value
 
   return (
     <section>
@@ -25,7 +34,9 @@ export default async function EnvPage() {
       <ul className="wasp-environment-list">
         {rows.map((environment) => (
           <li key={environment.id}>
-            <span>{environment.kind} · {new Date(environment.updatedAt).toLocaleDateString('fr-FR')}</span>
+            <span>
+              {environment.kind} · {new Date(environment.updatedAt).toLocaleDateString('fr-FR')}
+            </span>
             <Link href={`/environments/${environment.id}`}>Ouvrir</Link>
           </li>
         ))}

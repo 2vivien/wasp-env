@@ -17,6 +17,8 @@ async function fetchMaterial(url: string): Promise<Material | null> {
 export function IdentityKeyMaintenance() {
   const material = useSWR('/api/me/keys?includeEncrypted=1', fetchMaterial, {
     revalidateOnFocus: false,
+    shouldRetryOnError: false,
+    errorRetryCount: 0,
   })
   const [currentPassphrase, setCurrentPassphrase] = useState('')
   const [nextPassphrase, setNextPassphrase] = useState('')
