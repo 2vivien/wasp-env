@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { Client } from 'pg'
-import { afterAll, beforeAll, expect, test } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
 const userId = `e2e-${crypto.randomUUID()}`
 const sessionId = crypto.randomUUID()
@@ -24,7 +24,7 @@ async function signSessionToken(value: string): Promise<string> {
   return encodeURIComponent(`${value}.${btoa(String.fromCharCode(...signature))}`)
 }
 
-beforeAll(async () => {
+test.beforeAll(async () => {
   const url = process.env.DATABASE_URL
   if (!url) return
   signedToken = await signSessionToken(token)
@@ -47,7 +47,7 @@ beforeAll(async () => {
   )
 })
 
-afterAll(async () => {
+test.afterAll(async () => {
   if (!client) return
   await client.query('DELETE FROM "user" WHERE id = $1', [userId])
   await client.end()
